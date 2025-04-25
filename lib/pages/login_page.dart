@@ -104,7 +104,7 @@ class _LoginPageState extends State<LoginPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Image.asset('assets/logo_koperasi.png', height: 150),
+                Image.asset('images/logokopma.png', height: 150),
                 SizedBox(height: 30),
                 TextFormField(
                   controller: _emailController,

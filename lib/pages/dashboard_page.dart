@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart'; // Tambahkan import ini
+import 'package:kopma/pages/login_page.dart';
 import 'simpanan_page.dart';
 import 'pinjaman_page.dart';
 import 'profil_page.dart';
@@ -99,7 +101,11 @@ class DashboardPage extends StatelessWidget {
   void _logout(BuildContext context) async {
     try {
       await FirebaseAuth.instance.signOut();
-      Navigator.pushReplacementNamed(context, '/login');
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+        (route) => false,
+      );
     } catch (e) {
       ScaffoldMessenger.of(
         context,
