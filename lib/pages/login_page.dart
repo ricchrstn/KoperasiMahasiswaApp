@@ -1,12 +1,11 @@
-// login_page.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dashboard_page.dart';
+import 'package:kopma/pages/forgot_password_page.dart';
+import 'package:kopma/pages/dashboard_page.dart';
 import 'registration_page.dart';
 
 class LoginPage extends StatefulWidget {
   final String? successMessage;
-
   const LoginPage({Key? key, this.successMessage}) : super(key: key);
 
   @override
@@ -17,26 +16,13 @@ class _LoginPageState extends State<LoginPage> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   String _errorMessage = '';
   bool _isLoading = false;
   bool _obscurePassword = true;
 
-  @override
-  void initState() {
-    super.initState();
-    if (widget.successMessage != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.successMessage!),
-            backgroundColor: Colors.green,
-          ),
-        );
-      });
-    }
-  }
-
+  // Login function
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -46,39 +32,32 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
-      if (mounted) {
+      final email = _emailController.text.trim();
+      final password = _passwordController.text.trim();
+
+      // First try to sign in
+      try {
+        await _auth.signInWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (_) => DashboardPage()),
         );
+      } on FirebaseAuthException catch (e) {
+        setState(() {
+          _errorMessage = e.message ?? 'An error occurred. Please try again.';
+        });
       }
-    } on FirebaseAuthException catch (e) {
+    } catch (e) {
       setState(() {
-        _errorMessage = _getErrorMessage(e.code);
+        _errorMessage = 'An error occurred. Please try again.';
       });
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
       }
-    }
-  }
-
-  String _getErrorMessage(String code) {
-    switch (code) {
-      case 'invalid-email':
-        return 'Invalid email address';
-      case 'user-disabled':
-        return 'Account disabled';
-      case 'user-not-found':
-        return 'Account not found';
-      case 'wrong-password':
-        return 'Incorrect password';
-      default:
-        return 'Login failed. Please try again.';
     }
   }
 
@@ -111,7 +90,6 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo and title
                   Image.asset('images/logokopma.png', height: 120),
                   SizedBox(height: 24),
                   Text(
@@ -128,8 +106,6 @@ class _LoginPageState extends State<LoginPage> {
                     style: TextStyle(fontSize: 16, color: Colors.white70),
                   ),
                   SizedBox(height: 32),
-
-                  // Form
                   Card(
                     elevation: 8,
                     shape: RoundedRectangleBorder(
@@ -195,16 +171,6 @@ class _LoginPageState extends State<LoginPage> {
                               },
                             ),
                             SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () {
-                                  // TODO: Implement forgot password
-                                },
-                                child: Text('Forgot Password?'),
-                              ),
-                            ),
-                            SizedBox(height: 16),
                             if (_errorMessage.isNotEmpty)
                               Padding(
                                 padding: EdgeInsets.only(bottom: 16),
@@ -274,6 +240,23 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                       ),
                     ],
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ForgotPasswordPage(),
+                        ),
+                      );
+                    },
+                    child: Text(
+                      'Forgot Password?',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),

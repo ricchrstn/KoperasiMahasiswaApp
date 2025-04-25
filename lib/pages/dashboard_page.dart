@@ -1,4 +1,3 @@
-// dashboard_page.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kopma/pages/login_page.dart';
@@ -6,116 +5,67 @@ import 'simpanan_page.dart';
 import 'pinjaman_page.dart';
 import 'profil_page.dart';
 
-class DashboardPage extends StatelessWidget {
-  final List<Map<String, dynamic>> menuItems = [
-    {
-      'icon': Icons.savings,
-      'label': 'Simpanan',
-      'page': SimpananPage(),
-      'color': Colors.blue.shade700,
-      'gradient': [Colors.blue.shade600, Colors.blue.shade400],
-    },
-    {
-      'icon': Icons.account_balance,
-      'label': 'Pinjaman',
-      'page': PinjamanPage(),
-      'color': Colors.green.shade700,
-      'gradient': [Colors.green.shade600, Colors.green.shade400],
-    },
-    {
-      'icon': Icons.person,
-      'label': 'Profil',
-      'page': ProfilPage(),
-      'color': Colors.purple.shade700,
-      'gradient': [Colors.purple.shade600, Colors.purple.shade400],
-    },
-    {
-      'icon': Icons.logout,
-      'label': 'Logout',
-      'action': true,
-      'color': Colors.red.shade700,
-      'gradient': [Colors.red.shade600, Colors.red.shade400],
-    },
+class DashboardPage extends StatefulWidget {
+  @override
+  _DashboardPageState createState() => _DashboardPageState();
+}
+
+class _DashboardPageState extends State<DashboardPage> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _pages = [
+    HomeContent(),
+    SimpananPage(),
+    PinjamanPage(),
+    ProfilPage(),
   ];
+
+  final List<String> _appBarTitles = [
+    'Dashboard Koperasi',
+    'Simpanan',
+    'Pinjaman',
+    'Profil',
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Dashboard Koperasi'),
-        centerTitle: true,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.notifications),
-            onPressed: () {
-              // TODO: Implement notifications
-            },
+      appBar:
+          _selectedIndex == 0
+              ? AppBar(
+                title: Text(_appBarTitles[_selectedIndex]),
+                centerTitle: true,
+                elevation: 0,
+                actions: [
+                  IconButton(
+                    icon: Icon(Icons.logout),
+                    onPressed: () => _logout(context),
+                  ),
+                ],
+              )
+              : null, // Hide AppBar for other pages (Simpanan, Pinjaman, Profil)
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(icon: Icon(Icons.savings), label: 'Simpanan'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.account_balance),
+            label: 'Pinjaman',
           ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
         ],
-      ),
-      body: Container(
-        padding: EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.green[50]!, Colors.white],
-          ),
-        ),
-        child: GridView.count(
-          crossAxisCount: 2,
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.0,
-          children:
-              menuItems.map((item) {
-                return Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(16),
-                    onTap: () {
-                      if (item['action'] == true) {
-                        _logout(context);
-                      } else {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => item['page']),
-                        );
-                      }
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(16),
-                        gradient: LinearGradient(
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                          colors: item['gradient'],
-                        ),
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(item['icon'], size: 40, color: Colors.white),
-                          SizedBox(height: 12),
-                          Text(
-                            item['label'],
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }).toList(),
-        ),
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.blue.shade800,
+        unselectedItemColor: Colors.grey,
+        onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
       ),
     );
   }
@@ -133,5 +83,38 @@ class DashboardPage extends StatelessWidget {
         context,
       ).showSnackBar(SnackBar(content: Text('Logout failed: $e')));
     }
+  }
+}
+
+class HomeContent extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.green[50]!, Colors.white],
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'Selamat Datang di Koperasi',
+              style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+                color: Colors.green.shade800,
+              ),
+            ),
+            SizedBox(height: 20),
+            Icon(Icons.account_balance, size: 60, color: Colors.green.shade600),
+          ],
+        ),
+      ),
+    );
   }
 }
