@@ -1,44 +1,32 @@
-// login_page.dart
+// registration_page.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'dashboard_page.dart';
-import 'registration_page.dart';
+import 'login_page.dart';
 
-class LoginPage extends StatefulWidget {
-  final String? successMessage;
-
-  const LoginPage({Key? key, this.successMessage}) : super(key: key);
-
+class RegistrationPage extends StatefulWidget {
   @override
-  State<LoginPage> createState() => _LoginPageState();
+  _RegistrationPageState createState() => _RegistrationPageState();
 }
 
-class _LoginPageState extends State<LoginPage> {
+class _RegistrationPageState extends State<RegistrationPage> {
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
-  String _errorMessage = '';
   bool _isLoading = false;
-  bool _obscurePassword = true;
+  String _errorMessage = '';
 
-  @override
-  void initState() {
-    super.initState();
-    if (widget.successMessage != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(widget.successMessage!),
-            backgroundColor: Colors.green,
-          ),
-        );
-      });
-    }
-  }
-
-  Future<void> _login() async {
+  Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_passwordController.text != _confirmPasswordController.text) {
+      setState(() {
+        _errorMessage = 'Passwords do not match';
+      });
+      return;
+    }
 
     setState(() {
       _isLoading = true;
@@ -46,16 +34,29 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+      UserCredential userCredential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
+
+      // Update display name
+      await userCredential.user?.updateDisplayName(_nameController.text.trim());
+
+      // Send email verification
+      await userCredential.user?.sendEmailVerification();
+
+      // Navigate to login page with success message
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder:
+              (context) => LoginPage(
+                successMessage:
+                    'Registration successful! Please verify your email.',
+              ),
+        ),
       );
-      if (mounted) {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (_) => DashboardPage()),
-        );
-      }
     } on FirebaseAuthException catch (e) {
       setState(() {
         _errorMessage = _getErrorMessage(e.code);
@@ -69,16 +70,16 @@ class _LoginPageState extends State<LoginPage> {
 
   String _getErrorMessage(String code) {
     switch (code) {
+      case 'email-already-in-use':
+        return 'Email already registered';
       case 'invalid-email':
         return 'Invalid email address';
-      case 'user-disabled':
-        return 'Account disabled';
-      case 'user-not-found':
-        return 'Account not found';
-      case 'wrong-password':
-        return 'Incorrect password';
+      case 'operation-not-allowed':
+        return 'Operation not allowed';
+      case 'weak-password':
+        return 'Password is too weak';
       default:
-        return 'Login failed. Please try again.';
+        return 'Registration failed. Please try again.';
     }
   }
 
@@ -86,6 +87,8 @@ class _LoginPageState extends State<LoginPage> {
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _nameController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
@@ -115,7 +118,7 @@ class _LoginPageState extends State<LoginPage> {
                   Image.asset('images/logokopma.png', height: 120),
                   SizedBox(height: 24),
                   Text(
-                    'Welcome Back',
+                    'Create Account',
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -124,7 +127,7 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'Sign in to your koperasi account',
+                    'Join our koperasi community',
                     style: TextStyle(fontSize: 16, color: Colors.white70),
                   ),
                   SizedBox(height: 32),
@@ -141,6 +144,23 @@ class _LoginPageState extends State<LoginPage> {
                         key: _formKey,
                         child: Column(
                           children: [
+                            TextFormField(
+                              controller: _nameController,
+                              decoration: InputDecoration(
+                                labelText: 'Full Name',
+                                prefixIcon: Icon(Icons.person),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter your name';
+                                }
+                                return null;
+                              },
+                            ),
+                            SizedBox(height: 16),
                             TextFormField(
                               controller: _emailController,
                               decoration: InputDecoration(
@@ -167,26 +187,14 @@ class _LoginPageState extends State<LoginPage> {
                               decoration: InputDecoration(
                                 labelText: 'Password',
                                 prefixIcon: Icon(Icons.lock),
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword
-                                        ? Icons.visibility
-                                        : Icons.visibility_off,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
-                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(8),
                                 ),
                               ),
-                              obscureText: _obscurePassword,
+                              obscureText: true,
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Please enter your password';
+                                  return 'Please enter a password';
                                 }
                                 if (value.length < 6) {
                                   return 'Password must be at least 6 characters';
@@ -194,17 +202,25 @@ class _LoginPageState extends State<LoginPage> {
                                 return null;
                               },
                             ),
-                            SizedBox(height: 8),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () {
-                                  // TODO: Implement forgot password
-                                },
-                                child: Text('Forgot Password?'),
-                              ),
-                            ),
                             SizedBox(height: 16),
+                            TextFormField(
+                              controller: _confirmPasswordController,
+                              decoration: InputDecoration(
+                                labelText: 'Confirm Password',
+                                prefixIcon: Icon(Icons.lock_outline),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              obscureText: true,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please confirm your password';
+                                }
+                                return null;
+                              },
+                            ),
+                            SizedBox(height: 24),
                             if (_errorMessage.isNotEmpty)
                               Padding(
                                 padding: EdgeInsets.only(bottom: 16),
@@ -220,7 +236,7 @@ class _LoginPageState extends State<LoginPage> {
                               width: double.infinity,
                               height: 50,
                               child: ElevatedButton(
-                                onPressed: _isLoading ? null : _login,
+                                onPressed: _isLoading ? null : _register,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.green.shade700,
                                   shape: RoundedRectangleBorder(
@@ -235,7 +251,7 @@ class _LoginPageState extends State<LoginPage> {
                                           strokeWidth: 3,
                                         )
                                         : Text(
-                                          'SIGN IN',
+                                          'REGISTER',
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
@@ -253,7 +269,7 @@ class _LoginPageState extends State<LoginPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        "Don't have an account?",
+                        'Already have an account?',
                         style: TextStyle(color: Colors.white),
                       ),
                       TextButton(
@@ -261,12 +277,12 @@ class _LoginPageState extends State<LoginPage> {
                           Navigator.pushReplacement(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => RegistrationPage(),
+                              builder: (context) => LoginPage(),
                             ),
                           );
                         },
                         child: Text(
-                          'Sign Up',
+                          'Sign In',
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
