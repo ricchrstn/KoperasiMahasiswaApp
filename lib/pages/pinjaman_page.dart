@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart';
 
 class PinjamanPage extends StatefulWidget {
   @override
@@ -10,10 +11,101 @@ class PinjamanPage extends StatefulWidget {
 class _PinjamanPageState extends State<PinjamanPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final NumberFormat _currencyFormat = NumberFormat.currency(
+    locale: 'id_ID',
+    symbol: 'Rp ',
+    decimalDigits: 0,
+  );
+  final DateFormat _dateFormat = DateFormat('yyyy-MM-dd');
+
+  String? _userRole;
+  String _searchQuery = '';
+  String _filterStatus = 'Semua';
+
+  @override
+  void initState() {
+    super.initState();
+    _getUserRole();
+  }
+
+  Future<void> _getUserRole() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      try {
+        final doc = await _firestore.collection('users').doc(user.uid).get();
+        setState(() {
+          _userRole = doc.data()?['role'] ?? 'mahasiswa';
+        });
+      } catch (e) {
+        setState(() {
+          _userRole = 'mahasiswa';
+        });
+      }
+    }
+  }
+
+  Future<void> _updateStatus(
+    String id,
+    String status,
+    Map<String, dynamic> pinjamanData,
+  ) async {
+    try {
+      await _firestore.collection('pinjaman').doc(id).update({
+        'status': status,
+      });
+      if (status == 'Disetujui') {
+        await _firestore.collection('notifications').add({
+          'userId': pinjamanData['userId'],
+          'title': 'Pinjaman Disetujui',
+          'message':
+              'Pinjaman ${_currencyFormat.format(pinjamanData['jumlah'])} telah disetujui',
+          'timestamp': FieldValue.serverTimestamp(),
+          'read': false,
+        });
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Status pinjaman diperbarui menjadi $status'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal memperbarui status: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _addCicilan(String pinjamanId, int jumlah) async {
+    try {
+      await _firestore.collection('cicilan').add({
+        'pinjamanId': pinjamanId,
+        'jumlah': jumlah,
+        'tanggal': _dateFormat.format(DateTime.now()),
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Cicilan berhasil ditambahkan'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Gagal menambahkan cicilan: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final User? user = _auth.currentUser;
+    final user = _auth.currentUser;
 
     if (user == null) {
       return Scaffold(
@@ -24,102 +116,222 @@ class _PinjamanPageState extends State<PinjamanPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Pinjaman Mahasiswa'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          },
+        ),
+        title: Text(_userRole == 'admin' ? 'Kelola Pinjaman' : 'Pinjaman Saya'),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: Icon(Icons.add),
-            onPressed: () => _showAddPinjamanDialog(context, user.uid),
+          PopupMenuButton<String>(
+            onSelected: (value) => setState(() => _filterStatus = value),
+            itemBuilder:
+                (context) => [
+                  PopupMenuItem(value: 'Semua', child: Text('Semua')),
+                  PopupMenuItem(value: 'Disetujui', child: Text('Disetujui')),
+                  PopupMenuItem(value: 'Menunggu', child: Text('Menunggu')),
+                  PopupMenuItem(value: 'Ditolak', child: Text('Ditolak')),
+                ],
+            icon: Icon(Icons.filter_list),
           ),
         ],
       ),
-      body: StreamBuilder<QuerySnapshot>(
-        stream:
-            _firestore
-                .collection('pinjaman')
-                .where('userId', isEqualTo: user.uid)
-                .orderBy('tanggal', descending: true)
-                .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          }
-
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          }
-
-          final data = snapshot.data!.docs;
-
-          if (data.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.account_balance, size: 50, color: Colors.green),
-                  SizedBox(height: 16),
-                  Text('Belum ada data pinjaman'),
-                  SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () => _showAddPinjamanDialog(context, user.uid),
-                    child: Text('Ajukan Pinjaman'),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: EdgeInsets.all(16),
-            itemCount: data.length,
-            itemBuilder: (context, index) {
-              final pinjaman = data[index].data() as Map<String, dynamic>;
-              return Card(
-                margin: EdgeInsets.only(bottom: 12),
-                child: ListTile(
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.green[100],
-                    child: Icon(Icons.money, color: Colors.green),
-                  ),
-                  title: Text(
-                    'Rp ${pinjaman['jumlah']}',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Tanggal: ${pinjaman['tanggal']}'),
-                      Text('Status: ${pinjaman['status'] ?? 'Menunggu'}'),
-                      if (pinjaman['keterangan'] != null)
-                        Text('Keterangan: ${pinjaman['keterangan']}'),
-                    ],
-                  ),
-                  trailing:
-                      pinjaman['status'] == 'Disetujui'
-                          ? Icon(Icons.check_circle, color: Colors.green)
-                          : pinjaman['status'] == 'Ditolak'
-                          ? Icon(Icons.cancel, color: Colors.red)
-                          : Icon(Icons.access_time, color: Colors.orange),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Cari berdasarkan jumlah atau tanggal...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              );
-            },
-          );
-        },
+              ),
+              onChanged:
+                  (value) => setState(() => _searchQuery = value.toLowerCase()),
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream:
+                  _userRole == 'admin'
+                      ? _firestore
+                          .collection('pinjaman')
+                          .orderBy('createdAt', descending: true)
+                          .snapshots()
+                      : _firestore
+                          .collection('pinjaman')
+                          .where('userId', isEqualTo: user.uid)
+                          .orderBy('createdAt', descending: true)
+                          .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError)
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                if (snapshot.connectionState == ConnectionState.waiting)
+                  return Center(child: CircularProgressIndicator());
+
+                var documents = snapshot.data!.docs;
+
+                if (_filterStatus != 'Semua') {
+                  documents =
+                      documents
+                          .where(
+                            (doc) => (doc['status'] ?? '').toString().contains(
+                              _filterStatus,
+                            ),
+                          )
+                          .toList();
+                }
+
+                if (_searchQuery.isNotEmpty) {
+                  documents =
+                      documents.where((doc) {
+                        final jumlah = (doc['jumlah'] ?? '').toString();
+                        final tanggal = (doc['tanggal'] ?? '').toString();
+                        return jumlah.contains(_searchQuery) ||
+                            tanggal.contains(_searchQuery);
+                      }).toList();
+                }
+
+                if (documents.isEmpty) {
+                  return Center(child: Text('Belum ada data pinjaman'));
+                }
+
+                return _buildPinjamanList(documents);
+              },
+            ),
+          ),
+        ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddPinjamanDialog(context, user.uid),
-        child: Icon(Icons.add),
-        backgroundColor: Colors.green,
-      ),
+      floatingActionButton:
+          _userRole != 'admin'
+              ? FloatingActionButton(
+                onPressed: () => _showAddPinjamanDialog(context, user.uid),
+                child: Icon(Icons.add),
+                backgroundColor: Colors.green,
+              )
+              : null,
     );
+  }
+
+  Widget _buildPinjamanList(List<QueryDocumentSnapshot> documents) {
+    return ListView.builder(
+      itemCount: documents.length,
+      padding: EdgeInsets.all(8),
+      itemBuilder: (context, index) {
+        final pinjamanData = documents[index].data() as Map<String, dynamic>;
+        final createdAt = (pinjamanData['createdAt'] as Timestamp?)?.toDate();
+
+        return Card(
+          margin: EdgeInsets.all(8),
+          child: ExpansionTile(
+            leading: CircleAvatar(
+              backgroundColor: Colors.green[100],
+              child: Icon(Icons.money, color: Colors.green),
+            ),
+            title: Text(
+              _currencyFormat.format(pinjamanData['jumlah'] ?? 0),
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Tanggal: ${pinjamanData['tanggal'] ?? '-'}'),
+                Text('Status: ${pinjamanData['status'] ?? 'Menunggu'}'),
+              ],
+            ),
+            trailing:
+                _userRole == 'admin'
+                    ? PopupMenuButton<String>(
+                      onSelected:
+                          (value) => _updateStatus(
+                            documents[index].id,
+                            value,
+                            pinjamanData,
+                          ),
+                      itemBuilder:
+                          (context) => [
+                            PopupMenuItem(
+                              value: 'Disetujui',
+                              child: Text('Setujui'),
+                            ),
+                            PopupMenuItem(
+                              value: 'Ditolak',
+                              child: Text('Tolak'),
+                            ),
+                          ],
+                    )
+                    : _buildStatusIcon(pinjamanData['status']),
+            children: [
+              Padding(
+                padding: EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    if (pinjamanData['tujuan'] != null)
+                      ListTile(
+                        leading: Icon(Icons.label),
+                        title: Text('Tujuan'),
+                        subtitle: Text(pinjamanData['tujuan']),
+                      ),
+                    if (pinjamanData['keterangan'] != null)
+                      ListTile(
+                        leading: Icon(Icons.note),
+                        title: Text('Keterangan'),
+                        subtitle: Text(pinjamanData['keterangan']),
+                      ),
+                    if (_userRole == 'admin' && pinjamanData['userId'] != null)
+                      ListTile(
+                        leading: Icon(Icons.person),
+                        title: Text('User ID'),
+                        subtitle: Text(pinjamanData['userId']),
+                      ),
+                    if (createdAt != null)
+                      ListTile(
+                        leading: Icon(Icons.date_range),
+                        title: Text('Diajukan'),
+                        subtitle: Text(_dateFormat.format(createdAt)),
+                      ),
+                    if (pinjamanData['status'] == 'Disetujui' &&
+                        _userRole != 'admin')
+                      ElevatedButton(
+                        onPressed:
+                            () => _showAddCicilanDialog(
+                              context,
+                              documents[index].id,
+                            ),
+                        child: Text('Bayar Cicilan'),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStatusIcon(String? status) {
+    switch (status) {
+      case 'Disetujui':
+        return Icon(Icons.check_circle, color: Colors.green);
+      case 'Ditolak':
+        return Icon(Icons.cancel, color: Colors.red);
+      default:
+        return Icon(Icons.access_time, color: Colors.orange);
+    }
   }
 
   void _showAddPinjamanDialog(BuildContext context, String userId) {
     final formKey = GlobalKey<FormState>();
     final jumlahController = TextEditingController();
     final tujuanController = TextEditingController();
+    final keteranganController = TextEditingController();
     final tanggalController = TextEditingController(
-      text: DateTime.now().toString().split(' ')[0],
+      text: _dateFormat.format(DateTime.now()),
     );
 
     showDialog(
@@ -141,12 +353,10 @@ class _PinjamanPageState extends State<PinjamanPage> {
                     ),
                     keyboardType: TextInputType.number,
                     validator: (value) {
-                      if (value == null || value.isEmpty) {
+                      if (value == null || value.isEmpty)
                         return 'Jumlah harus diisi';
-                      }
-                      if (int.tryParse(value) == null) {
+                      if (int.tryParse(value) == null)
                         return 'Masukkan angka yang valid';
-                      }
                       return null;
                     },
                   ),
@@ -154,12 +364,19 @@ class _PinjamanPageState extends State<PinjamanPage> {
                   TextFormField(
                     controller: tujuanController,
                     decoration: InputDecoration(labelText: 'Tujuan Pinjaman'),
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Tujuan harus diisi';
-                      }
-                      return null;
-                    },
+                    validator:
+                        (value) =>
+                            value == null || value.isEmpty
+                                ? 'Tujuan harus diisi'
+                                : null,
+                  ),
+                  SizedBox(height: 16),
+                  TextFormField(
+                    controller: keteranganController,
+                    decoration: InputDecoration(
+                      labelText: 'Keterangan (Opsional)',
+                    ),
+                    maxLines: 2,
                   ),
                   SizedBox(height: 16),
                   TextFormField(
@@ -177,7 +394,7 @@ class _PinjamanPageState extends State<PinjamanPage> {
                         lastDate: DateTime.now(),
                       );
                       if (date != null) {
-                        tanggalController.text = date.toString().split(' ')[0];
+                        tanggalController.text = _dateFormat.format(date);
                       }
                     },
                   ),
@@ -194,28 +411,82 @@ class _PinjamanPageState extends State<PinjamanPage> {
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
                   try {
-                    await FirebaseFirestore.instance
-                        .collection('pinjaman')
-                        .add({
-                          'userId': userId,
-                          'jumlah': int.parse(jumlahController.text),
-                          'tujuan': tujuanController.text,
-                          'tanggal': tanggalController.text,
-                          'status': 'Menunggu',
-                          'createdAt': FieldValue.serverTimestamp(),
-                        });
+                    await _firestore.collection('pinjaman').add({
+                      'userId': userId,
+                      'jumlah': int.parse(jumlahController.text),
+                      'tujuan': tujuanController.text,
+                      'keterangan': keteranganController.text,
+                      'tanggal': tanggalController.text,
+                      'status': 'Menunggu',
+                      'createdAt': FieldValue.serverTimestamp(),
+                    });
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Pinjaman berhasil diajukan')),
+                      SnackBar(
+                        content: Text('Pinjaman berhasil diajukan'),
+                        backgroundColor: Colors.green,
+                      ),
                     );
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Gagal mengajukan pinjaman: $e')),
+                      SnackBar(
+                        content: Text('Gagal mengajukan pinjaman: $e'),
+                        backgroundColor: Colors.red,
+                      ),
                     );
                   }
                 }
               },
               child: Text('Ajukan'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showAddCicilanDialog(BuildContext context, String pinjamanId) {
+    final formKey = GlobalKey<FormState>();
+    final jumlahController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text('Tambah Cicilan'),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              controller: jumlahController,
+              decoration: InputDecoration(
+                labelText: 'Jumlah Cicilan',
+                prefixText: 'Rp ',
+              ),
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.isEmpty) return 'Jumlah harus diisi';
+                if (int.tryParse(value) == null)
+                  return 'Masukkan angka yang valid';
+                return null;
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Batal'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  await _addCicilan(
+                    pinjamanId,
+                    int.parse(jumlahController.text),
+                  );
+                  Navigator.pop(context);
+                }
+              },
+              child: Text('Simpan'),
             ),
           ],
         );

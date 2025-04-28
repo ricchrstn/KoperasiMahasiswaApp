@@ -1,21 +1,66 @@
-// main.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import 'pages/login_page.dart';
 import 'pages/registration_page.dart';
+import 'pages/admin_dashboard.dart';
 import 'pages/dashboard_page.dart';
+import 'services/firestore_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-    runApp(const KoperasiApp());
+    await _createDefaultAdmin();
+    runApp(
+      MultiProvider(
+        providers: [Provider(create: (_) => FirestoreService())],
+        child: const KoperasiApp(),
+      ),
+    );
   } catch (e) {
     runApp(const FirebaseErrorApp());
+  }
+}
+
+Future<void> _createDefaultAdmin() async {
+  try {
+    const adminEmail = 'admin@kopma.com';
+    const adminPassword = 'admin123';
+    const adminName = 'Admin Koperasi';
+
+    final auth = FirebaseAuth.instance;
+    final firestore = FirebaseFirestore.instance;
+
+    try {
+      await auth.signInWithEmailAndPassword(
+        email: adminEmail,
+        password: adminPassword,
+      );
+      await auth.signOut();
+    } catch (e) {
+      final userCredential = await auth.createUserWithEmailAndPassword(
+        email: adminEmail,
+        password: adminPassword,
+      );
+
+      await userCredential.user?.updateDisplayName(adminName);
+
+      await firestore.collection('users').doc(userCredential.user!.uid).set({
+        'email': adminEmail,
+        'name': adminName,
+        'role': 'admin',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    }
+  } catch (e) {
+    print('Gagal membuat admin default: $e');
   }
 }
 
@@ -52,7 +97,9 @@ class KoperasiApp extends StatelessWidget {
       routes: {
         '/login': (context) => LoginPage(),
         '/register': (context) => RegistrationPage(),
-        '/dashboard': (context) => DashboardPage(),
+        '/dashboard':
+            (context) =>
+                DashboardPage(), // Akan arahkan ke Admin/Mahasiswa dashboard
       },
       onGenerateRoute: (settings) {
         return MaterialPageRoute(

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:kopma/pages/dashboard_page.dart';
 
 class SimpananPage extends StatefulWidget {
   @override
@@ -17,353 +19,521 @@ class _SimpananPageState extends State<SimpananPage> {
     decimalDigits: 0,
   );
 
+  String? _userRole;
+  String _searchQuery = '';
+  String _filterTanggal = 'Semua';
+  String _jenisSimpanan = 'semua';
+
+  @override
+  void initState() {
+    super.initState();
+    _getUserRole();
+    initializeDateFormatting('id_ID', null);
+  }
+
+  Future<void> _getUserRole() async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      final doc = await _firestore.collection('users').doc(user.uid).get();
+      setState(() {
+        _userRole = doc.data()?['role'] ?? 'mahasiswa';
+      });
+    }
+  }
+
+  void _showSnackbar(String message, {Color color = Colors.green}) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message), backgroundColor: color));
+  }
+
   @override
   Widget build(BuildContext context) {
     final User? user = _auth.currentUser;
-
     if (user == null) {
-      return _buildNotLoggedIn(context);
+      return Scaffold(
+        appBar: AppBar(title: Text('Simpanan')),
+        body: Center(child: Text('Silakan login')),
+      );
     }
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Simpanan Saya'),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => DashboardPage(),
+              ), // <-- Pastikan DashboardPage ada/import
+            );
+          },
+        ),
+        title: Text(_userRole == 'admin' ? 'Kelola Simpanan' : 'Simpanan Saya'),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: Icon(Icons.add),
-            onPressed: () => _showAddSimpananDialog(user.uid),
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              setState(() {
+                if (value == 'Semua' ||
+                    value == 'Bulan Ini' ||
+                    value == '3 Bulan Terakhir') {
+                  _filterTanggal = value;
+                } else {
+                  _jenisSimpanan = value;
+                }
+              });
+            },
+            itemBuilder:
+                (context) => [
+                  PopupMenuItem(child: Text('Filter Tanggal'), enabled: false),
+                  PopupMenuItem(value: 'Semua', child: Text('Semua Tanggal')),
+                  PopupMenuItem(value: 'Bulan Ini', child: Text('Bulan Ini')),
+                  PopupMenuItem(
+                    value: '3 Bulan Terakhir',
+                    child: Text('3 Bulan Terakhir'),
+                  ),
+                  PopupMenuDivider(),
+                  PopupMenuItem(child: Text('Jenis Simpanan'), enabled: false),
+                  PopupMenuItem(value: 'semua', child: Text('Semua Jenis')),
+                  PopupMenuItem(value: 'wajib', child: Text('Wajib')),
+                  PopupMenuItem(value: 'sukarela', child: Text('Sukarela')),
+                ],
+            icon: Icon(Icons.filter_list),
           ),
         ],
       ),
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [Colors.green[50]!, Colors.white],
+
+      floatingActionButton:
+          _userRole != 'admin'
+              ? FloatingActionButton(
+                onPressed: () => _showAddSimpananDialog(context, user.uid),
+                child: Icon(Icons.add),
+                backgroundColor: Colors.blue,
+              )
+              : null,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Cari berdasarkan jumlah...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value.toLowerCase();
+                });
+              },
+            ),
           ),
-        ),
-        child: StreamBuilder<QuerySnapshot>(
-          stream:
-              _firestore
-                  .collection('simpanan')
-                  .where('userId', isEqualTo: user.uid)
-                  .orderBy('tanggal', descending: true)
-                  .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}'));
-            }
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream:
+                  _userRole == 'admin'
+                      ? _firestore
+                          .collection('simpanan')
+                          .orderBy('createdAt', descending: true)
+                          .snapshots()
+                      : _firestore
+                          .collection('simpanan')
+                          .where('userId', isEqualTo: user.uid)
+                          .orderBy('createdAt', descending: true)
+                          .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
 
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return Center(child: CircularProgressIndicator());
-            }
+                var documents = snapshot.data!.docs;
 
-            final data = snapshot.data!.docs;
+                // Filter tanggal
+                if (_filterTanggal != 'Semua') {
+                  final now = DateTime.now();
+                  documents =
+                      documents.where((doc) {
+                        final tanggal = DateTime.tryParse(doc['tanggal'] ?? '');
+                        if (tanggal == null) return false;
+                        if (_filterTanggal == 'Bulan Ini') {
+                          return tanggal.month == now.month &&
+                              tanggal.year == now.year;
+                        } else if (_filterTanggal == '3 Bulan Terakhir') {
+                          return now.difference(tanggal).inDays <= 90;
+                        }
+                        return true;
+                      }).toList();
+                }
 
-            if (data.isEmpty) {
-              return _buildEmptyState(user.uid);
-            }
+                // Filter jenis
+                if (_jenisSimpanan != 'semua') {
+                  documents =
+                      documents.where((doc) {
+                        final jenis =
+                            doc.data().toString().contains('jenis')
+                                ? (doc['jenis'] ?? 'sukarela')
+                                : 'sukarela';
+                        return jenis == _jenisSimpanan;
+                      }).toList();
+                }
 
-            double total = data.fold(
-              0,
-              (previousValue, doc) =>
-                  previousValue +
-                  ((doc.data() as Map<String, dynamic>)['jumlah'] as num)
-                      .toDouble(),
-            );
+                // Search jumlah
+                if (_searchQuery.isNotEmpty) {
+                  documents =
+                      documents.where((doc) {
+                        final jumlah = (doc['jumlah'] ?? '').toString();
+                        return jumlah.contains(_searchQuery);
+                      }).toList();
+                }
 
-            return Column(
-              children: [
-                Card(
-                  margin: EdgeInsets.all(16),
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: EdgeInsets.all(16),
+                if (documents.isEmpty) {
+                  return Center(
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          'Total Simpanan',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: Colors.grey.shade600,
+                        Icon(Icons.savings, size: 50, color: Colors.blue),
+                        SizedBox(height: 16),
+                        Text('Belum ada data simpanan'),
+                        if (_userRole != 'admin')
+                          Padding(
+                            padding: const EdgeInsets.only(top: 16.0),
+                            child: ElevatedButton(
+                              onPressed:
+                                  () =>
+                                      _showAddSimpananDialog(context, user.uid),
+                              child: Text('Tambah Simpanan'),
+                            ),
                           ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          _currencyFormat.format(total),
-                          style: TextStyle(
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green.shade700,
-                          ),
-                        ),
                       ],
                     ),
+                  );
+                }
+
+                // Hitung total
+                double totalWajib = documents
+                    .where((doc) {
+                      final jenis =
+                          doc.data().toString().contains('jenis')
+                              ? (doc['jenis'] ?? 'sukarela')
+                              : 'sukarela';
+                      return jenis == 'wajib';
+                    })
+                    .fold(
+                      0,
+                      (sum, doc) =>
+                          sum + ((doc.data() as Map)['jumlah'] ?? 0).toDouble(),
+                    );
+
+                double totalSukarela = documents
+                    .where((doc) {
+                      final jenis =
+                          doc.data().toString().contains('jenis')
+                              ? (doc['jenis'] ?? 'sukarela')
+                              : 'sukarela';
+                      return jenis == 'sukarela';
+                    })
+                    .fold(
+                      0,
+                      (sum, doc) =>
+                          sum + ((doc.data() as Map)['jumlah'] ?? 0).toDouble(),
+                    );
+
+                double total = totalWajib + totalSukarela;
+
+                return Column(
+                  children: [
+                    Card(
+                      margin: EdgeInsets.all(16),
+                      elevation: 4,
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Total Simpanan',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey,
+                              ),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              _currencyFormat.format(total),
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                            SizedBox(height: 16),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                Column(
+                                  children: [
+                                    Text(
+                                      'Wajib',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                    Text(
+                                      _currencyFormat.format(totalWajib),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.blue,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                Column(
+                                  children: [
+                                    Text(
+                                      'Sukarela',
+                                      style: TextStyle(color: Colors.grey),
+                                    ),
+                                    Text(
+                                      _currencyFormat.format(totalSukarela),
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: ListView.builder(
+                        itemCount: documents.length,
+                        itemBuilder: (context, index) {
+                          final simpanan =
+                              documents[index].data() as Map<String, dynamic>;
+                          final jenis =
+                              simpanan.containsKey('jenis')
+                                  ? simpanan['jenis']
+                                  : 'sukarela';
+
+                          return Card(
+                            margin: EdgeInsets.all(8),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor:
+                                    jenis == 'wajib'
+                                        ? Colors.blue[100]
+                                        : Colors.green[100],
+                                child: Icon(
+                                  Icons.savings,
+                                  color:
+                                      jenis == 'wajib'
+                                          ? Colors.blue
+                                          : Colors.green,
+                                ),
+                              ),
+                              title: Text(
+                                _currencyFormat.format(simpanan['jumlah']),
+                                style: TextStyle(fontWeight: FontWeight.bold),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Tanggal: ${simpanan['tanggal'] ?? '-'}',
+                                  ),
+                                  Text(
+                                    'Jenis: ${jenis == 'wajib' ? 'Wajib' : 'Sukarela'}',
+                                  ),
+                                  if (simpanan['keterangan'] != null)
+                                    Text(
+                                      'Keterangan: ${simpanan['keterangan']}',
+                                    ),
+                                ],
+                              ),
+                              trailing:
+                                  _userRole != 'admin'
+                                      ? IconButton(
+                                        icon: Icon(
+                                          Icons.delete,
+                                          color: Colors.red,
+                                        ),
+                                        onPressed:
+                                            () => _deleteSimpanan(
+                                              documents[index].id,
+                                            ),
+                                      )
+                                      : null,
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _deleteSimpanan(String id) async {
+    try {
+      await _firestore.collection('simpanan').doc(id).delete();
+      _showSnackbar('Simpanan berhasil dihapus');
+    } catch (e) {
+      _showSnackbar('Gagal menghapus simpanan: $e', color: Colors.red);
+    }
+  }
+
+  void _showAddSimpananDialog(BuildContext context, String userId) {
+    final formKey = GlobalKey<FormState>();
+    final jumlahController = TextEditingController();
+    final keteranganController = TextEditingController();
+    final tanggalController = TextEditingController(
+      text: DateFormat('yyyy-MM-dd').format(DateTime.now()),
+    );
+    String jenisSimpanan = 'sukarela';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Tambah Simpanan'),
+              content: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ListTile(
+                              title: Text('Wajib'),
+                              leading: Radio(
+                                value: 'wajib',
+                                groupValue: jenisSimpanan,
+                                onChanged: (value) {
+                                  setState(() {
+                                    jenisSimpanan = value.toString();
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: ListTile(
+                              title: Text('Sukarela'),
+                              leading: Radio(
+                                value: 'sukarela',
+                                groupValue: jenisSimpanan,
+                                onChanged: (value) {
+                                  setState(() {
+                                    jenisSimpanan = value.toString();
+                                  });
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      TextFormField(
+                        controller: jumlahController,
+                        decoration: InputDecoration(
+                          labelText: 'Jumlah Simpanan',
+                          prefixText: 'Rp ',
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Jumlah harus diisi';
+                          }
+                          if (int.tryParse(value) == null) {
+                            return 'Masukkan angka yang valid';
+                          }
+                          return null;
+                        },
+                      ),
+                      SizedBox(height: 16),
+                      TextFormField(
+                        controller: keteranganController,
+                        decoration: InputDecoration(
+                          labelText: 'Keterangan (Opsional)',
+                        ),
+                        maxLines: 2,
+                      ),
+                      SizedBox(height: 16),
+                      TextFormField(
+                        controller: tanggalController,
+                        decoration: InputDecoration(
+                          labelText: 'Tanggal',
+                          suffixIcon: Icon(Icons.calendar_today),
+                        ),
+                        readOnly: true,
+                        onTap: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime.now(),
+                          );
+                          if (date != null) {
+                            tanggalController.text = DateFormat(
+                              'yyyy-MM-dd',
+                            ).format(date);
+                          }
+                        },
+                      ),
+                    ],
                   ),
                 ),
-                Expanded(
-                  child: ListView.builder(
-                    padding: EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: data.length,
-                    itemBuilder: (context, index) {
-                      final simpanan =
-                          data[index].data() as Map<String, dynamic>;
-                      final tanggal = simpanan['tanggal'];
-                      return Card(
-                        margin: EdgeInsets.only(bottom: 12),
-                        elevation: 2,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: Colors.blue.shade100,
-                            child: Icon(Icons.attach_money, color: Colors.blue),
-                          ),
-                          title: Text(
-                            _currencyFormat.format(simpanan['jumlah']),
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          subtitle: Text(
-                            'Tanggal: ${DateFormat('dd MMM yyyy', 'id_ID').format(DateTime.parse(tanggal))}',
-                            style: TextStyle(color: Colors.grey.shade600),
-                          ),
-                          trailing: IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _deleteSimpanan(data[index].id),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: Text('Batal'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (formKey.currentState!.validate()) {
+                      try {
+                        await _firestore.collection('simpanan').add({
+                          'userId': userId,
+                          'jumlah': int.parse(jumlahController.text),
+                          'jenis': jenisSimpanan,
+                          'keterangan': keteranganController.text,
+                          'tanggal': tanggalController.text,
+                          'createdAt': FieldValue.serverTimestamp(),
+                        });
+                        Navigator.pop(context);
+                        _showSnackbar('Simpanan berhasil ditambahkan');
+                      } catch (e) {
+                        _showSnackbar(
+                          'Gagal menambahkan simpanan: $e',
+                          color: Colors.red,
+                        );
+                      }
+                    }
+                  },
+                  child: Text('Simpan'),
                 ),
               ],
             );
           },
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddSimpananDialog(user.uid),
-        child: Icon(Icons.add),
-        backgroundColor: Colors.green,
-      ),
-    );
-  }
-
-  Widget _buildNotLoggedIn(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('Simpanan Saya')),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.error_outline, size: 50, color: Colors.red),
-            SizedBox(height: 16),
-            Text('Anda belum login', style: TextStyle(fontSize: 18)),
-            SizedBox(height: 16),
-            ElevatedButton(
-              onPressed:
-                  () => Navigator.pushReplacementNamed(context, '/login'),
-              child: Text('Login'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(String userId) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.savings, size: 50, color: Colors.blue),
-          SizedBox(height: 16),
-          Text(
-            'Belum ada data simpanan',
-            style: TextStyle(fontSize: 18, color: Colors.grey.shade600),
-          ),
-          SizedBox(height: 16),
-          ElevatedButton(
-            onPressed: () => _showAddSimpananDialog(userId),
-            child: Text('Tambah Simpanan'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.green,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showAddSimpananDialog(String userId) {
-    showDialog(
-      context: context,
-      builder: (context) => AddSimpananDialog(userId: userId),
-    );
-  }
-
-  void _deleteSimpanan(String docId) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text('Hapus Simpanan'),
-            content: Text('Apakah Anda yakin ingin menghapus simpanan ini?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text('Batal'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: Text('Hapus'),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              ),
-            ],
-          ),
-    );
-
-    if (confirmed == true) {
-      try {
-        await _firestore.collection('simpanan').doc(docId).delete();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Simpanan berhasil dihapus'),
-            backgroundColor: Colors.green,
-          ),
         );
-      } catch (e) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Gagal menghapus simpanan: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
-  }
-}
-
-class AddSimpananDialog extends StatefulWidget {
-  final String userId;
-
-  const AddSimpananDialog({required this.userId});
-
-  @override
-  State<AddSimpananDialog> createState() => _AddSimpananDialogState();
-}
-
-class _AddSimpananDialogState extends State<AddSimpananDialog> {
-  final _formKey = GlobalKey<FormState>();
-  final TextEditingController _jumlahController = TextEditingController();
-  final TextEditingController _tanggalController = TextEditingController(
-    text: DateFormat('yyyy-MM-dd').format(DateTime.now()),
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text('Tambah Simpanan'),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _jumlahController,
-              decoration: InputDecoration(
-                labelText: 'Jumlah',
-                prefixText: 'Rp ',
-                border: OutlineInputBorder(),
-              ),
-              keyboardType: TextInputType.number,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Jumlah harus diisi';
-                }
-                if (double.tryParse(value) == null) {
-                  return 'Masukkan angka yang valid';
-                }
-                return null;
-              },
-            ),
-            SizedBox(height: 16),
-            TextFormField(
-              controller: _tanggalController,
-              decoration: InputDecoration(
-                labelText: 'Tanggal',
-                suffixIcon: Icon(Icons.calendar_today),
-                border: OutlineInputBorder(),
-              ),
-              readOnly: true,
-              onTap: () async {
-                final date = await showDatePicker(
-                  context: context,
-                  initialDate: DateTime.now(),
-                  firstDate: DateTime(2000),
-                  lastDate: DateTime.now(),
-                );
-                if (date != null) {
-                  _tanggalController.text = DateFormat(
-                    'yyyy-MM-dd',
-                  ).format(date);
-                }
-              },
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text('Batal'),
-        ),
-        ElevatedButton(
-          onPressed: () async {
-            if (_formKey.currentState!.validate()) {
-              try {
-                await FirebaseFirestore.instance.collection('simpanan').add({
-                  'userId': widget.userId,
-                  'jumlah': double.parse(_jumlahController.text),
-                  'tanggal': _tanggalController.text,
-                  'createdAt': FieldValue.serverTimestamp(),
-                });
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Simpanan berhasil ditambahkan'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Gagal menambah simpanan: $e'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              }
-            }
-          },
-          child: Text('Simpan'),
-        ),
-      ],
+      },
     );
-  }
-
-  @override
-  void dispose() {
-    _jumlahController.dispose();
-    _tanggalController.dispose();
-    super.dispose();
   }
 }

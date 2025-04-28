@@ -1,6 +1,6 @@
-// registration_page.dart
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'login_page.dart';
 
 class RegistrationPage extends StatefulWidget {
@@ -14,6 +14,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _nimController = TextEditingController();
+  final _facultyController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   bool _isLoading = false;
   String _errorMessage = '';
@@ -42,6 +45,21 @@ class _RegistrationPageState extends State<RegistrationPage> {
 
       // Update display name
       await userCredential.user?.updateDisplayName(_nameController.text.trim());
+
+      // Simpan data tambahan di Firestore
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCredential.user!.uid)
+          .set({
+            'email': _emailController.text.trim(),
+            'name': _nameController.text.trim(),
+            'role': 'mahasiswa',
+            'nim': _nimController.text.trim(),
+            'faculty': _facultyController.text.trim(),
+            'phone': _phoneController.text.trim(),
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       // Send email verification
       await userCredential.user?.sendEmailVerification();
@@ -89,6 +107,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
     _passwordController.dispose();
     _nameController.dispose();
     _confirmPasswordController.dispose();
+    _nimController.dispose();
+    _facultyController.dispose();
+    _phoneController.dispose();
     super.dispose();
   }
 
@@ -114,7 +135,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Logo and title
                   Image.asset('images/logokopma.png', height: 120),
                   SizedBox(height: 24),
                   Text(
@@ -131,8 +151,6 @@ class _RegistrationPageState extends State<RegistrationPage> {
                     style: TextStyle(fontSize: 16, color: Colors.white70),
                   ),
                   SizedBox(height: 32),
-
-                  // Form
                   Card(
                     elevation: 8,
                     shape: RoundedRectangleBorder(
@@ -156,6 +174,59 @@ class _RegistrationPageState extends State<RegistrationPage> {
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Please enter your name';
+                                }
+                                return null;
+                              },
+                            ),
+                            SizedBox(height: 16),
+                            TextFormField(
+                              controller: _nimController,
+                              decoration: InputDecoration(
+                                labelText: 'NIM',
+                                prefixIcon: Icon(Icons.badge),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter your NIM';
+                                }
+                                return null;
+                              },
+                            ),
+                            SizedBox(height: 16),
+                            TextFormField(
+                              controller: _facultyController,
+                              decoration: InputDecoration(
+                                labelText: 'Faculty',
+                                prefixIcon: Icon(Icons.school),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter your faculty';
+                                }
+                                return null;
+                              },
+                            ),
+                            SizedBox(height: 16),
+                            TextFormField(
+                              controller: _phoneController,
+                              decoration: InputDecoration(
+                                labelText: 'Phone Number',
+                                prefixIcon: Icon(Icons.phone),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              keyboardType: TextInputType.phone,
+                              validator: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Please enter your phone number';
                                 }
                                 return null;
                               },
@@ -216,6 +287,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
                                   return 'Please confirm your password';
+                                }
+                                if (value != _passwordController.text) {
+                                  return 'Passwords do not match';
                                 }
                                 return null;
                               },

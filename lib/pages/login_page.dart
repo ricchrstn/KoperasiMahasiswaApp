@@ -1,5 +1,7 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:kopma/pages/admin_dashboard.dart';
 import 'package:kopma/pages/forgot_password_page.dart';
 import 'package:kopma/pages/dashboard_page.dart';
 import 'registration_page.dart';
@@ -22,7 +24,6 @@ class _LoginPageState extends State<LoginPage> {
   bool _isLoading = false;
   bool _obscurePassword = true;
 
-  // Login function
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -35,24 +36,35 @@ class _LoginPageState extends State<LoginPage> {
       final email = _emailController.text.trim();
       final password = _passwordController.text.trim();
 
-      // First try to sign in
-      try {
-        await _auth.signInWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
+      // Login
+      final credential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      // Ambil data user dari Firestore
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(credential.user!.uid)
+              .get();
+
+      final role = userDoc.data()?['role'] ?? 'mahasiswa';
+
+      if (role == 'admin') {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => DashboardPage()),
+          MaterialPageRoute(builder: (context) => AdminDashboard()),
         );
-      } on FirebaseAuthException catch (e) {
-        setState(() {
-          _errorMessage = e.message ?? 'An error occurred. Please try again.';
-        });
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => DashboardPage()),
+        );
       }
-    } catch (e) {
+    } on FirebaseAuthException catch (e) {
       setState(() {
-        _errorMessage = 'An error occurred. Please try again.';
+        _errorMessage = e.message ?? 'An error occurred. Please try again.';
       });
     } finally {
       if (mounted) {
