@@ -248,34 +248,40 @@ class AdminDashboard extends StatelessWidget {
     Color color,
     String value,
   ) {
-    return SizedBox(
-      width: _cardSize,
-      height: _cardSize,
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 40, color: color),
-              const SizedBox(height: 10),
-              Text(
-                title,
-                style: const TextStyle(fontSize: 14, color: Colors.black54),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 10),
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: color,
+    return Flexible(
+      child: SizedBox(
+        width: _cardSize,
+        height: _cardSize,
+        child: Card(
+          elevation: 4,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 40, color: color),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 14, color: Colors.black54),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-            ],
+                const SizedBox(height: 10),
+                FittedBox(
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: color,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

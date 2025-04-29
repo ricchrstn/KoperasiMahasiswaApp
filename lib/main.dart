@@ -13,10 +13,15 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
+    // Inisialisasi Firebase
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Membuat admin default jika belum ada
     await _createDefaultAdmin();
+
+    // Menjalankan aplikasi
     runApp(
       MultiProvider(
         providers: [Provider(create: (_) => FirestoreService())],
@@ -24,10 +29,13 @@ void main() async {
       ),
     );
   } catch (e) {
+    // Jika Firebase gagal diinisialisasi
+    print('Error initializing Firebase: $e');
     runApp(const FirebaseErrorApp());
   }
 }
 
+// Fungsi untuk membuat admin default
 Future<void> _createDefaultAdmin() async {
   try {
     const adminEmail = 'admin@kopma.com';
@@ -38,19 +46,23 @@ Future<void> _createDefaultAdmin() async {
     final firestore = FirebaseFirestore.instance;
 
     try {
+      // Cek apakah admin sudah ada
       await auth.signInWithEmailAndPassword(
         email: adminEmail,
         password: adminPassword,
       );
       await auth.signOut();
     } catch (e) {
+      // Jika admin belum ada, buat akun admin baru
       final userCredential = await auth.createUserWithEmailAndPassword(
         email: adminEmail,
         password: adminPassword,
       );
 
+      // Perbarui nama admin
       await userCredential.user?.updateDisplayName(adminName);
 
+      // Simpan data admin ke Firestore
       await firestore.collection('users').doc(userCredential.user!.uid).set({
         'email': adminEmail,
         'name': adminName,
@@ -64,6 +76,7 @@ Future<void> _createDefaultAdmin() async {
   }
 }
 
+// Widget utama aplikasi
 class KoperasiApp extends StatelessWidget {
   const KoperasiApp({super.key});
 
@@ -85,7 +98,7 @@ class KoperasiApp extends StatelessWidget {
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            padding: EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: 16),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
@@ -97,9 +110,7 @@ class KoperasiApp extends StatelessWidget {
       routes: {
         '/login': (context) => LoginPage(),
         '/register': (context) => RegistrationPage(),
-        '/dashboard':
-            (context) =>
-                DashboardPage(), // Akan arahkan ke Admin/Mahasiswa dashboard
+        '/dashboard': (context) => DashboardPage(),
       },
       onGenerateRoute: (settings) {
         return MaterialPageRoute(
@@ -114,6 +125,7 @@ class KoperasiApp extends StatelessWidget {
   }
 }
 
+// Widget untuk menampilkan error jika Firebase gagal diinisialisasi
 class FirebaseErrorApp extends StatelessWidget {
   const FirebaseErrorApp({super.key});
 

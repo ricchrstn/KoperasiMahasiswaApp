@@ -94,20 +94,17 @@ class _DashboardPageState extends State<DashboardPage> {
     ];
 
     return Scaffold(
-      appBar:
-          _selectedIndex == 0
-              ? AppBar(
-                title: Text('Dashboard Koperasi'),
-                centerTitle: true,
-                automaticallyImplyLeading: false,
-                actions: [
-                  IconButton(
-                    icon: Icon(Icons.logout),
-                    onPressed: () => _logout(context),
-                  ),
-                ],
-              )
-              : null,
+      appBar: AppBar(
+        title: Text('Dashboard Koperasi'),
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: Icon(Icons.logout),
+            onPressed: () => _logout(context),
+          ),
+        ],
+      ),
       body: _pages[_selectedIndex],
       bottomNavigationBar: BottomNavigationBar(
         items: const <BottomNavigationBarItem>[
@@ -182,30 +179,198 @@ class HomeContent extends StatelessWidget {
           colors: [Colors.green[50]!, Colors.white],
         ),
       ),
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              'Selamat Datang di Koperasi',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: Colors.green.shade800,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Selamat Datang di Koperasi',
+                  style: TextStyle(
+                    fontSize: 24,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green.shade800,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  userRole == 'admin'
+                      ? 'Anda login sebagai Admin'
+                      : 'Anda login sebagai Mahasiswa',
+                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                ),
+                SizedBox(height: 20),
+                Image.asset(
+                  'assets/images/logokopma.png',
+                  width: 150,
+                  height: 150,
+                ),
+                SizedBox(height: 20),
+              ],
+            ),
+          ),
+          StreamBuilder<QuerySnapshot>(
+            stream:
+                FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(FirebaseAuth.instance.currentUser!.uid)
+                    .collection('notifications')
+                    .orderBy('createdAt', descending: true)
+                    .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return CircularProgressIndicator();
+              }
+
+              if (snapshot.hasError) {
+                return Text('Error fetching notifications: ${snapshot.error}');
+              }
+
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return Text('Tidak ada notifikasi saat ini.');
+              }
+
+              final notifications = snapshot.data!.docs;
+
+              return ListView.builder(
+                shrinkWrap: true,
+                itemCount: notifications.length,
+                itemBuilder: (context, index) {
+                  final notification =
+                      notifications[index].data() as Map<String, dynamic>;
+                  final message = notification['message'] ?? 'Tidak ada pesan.';
+                  final status = notification['status'] ?? 'unread';
+
+                  return Card(
+                    color:
+                        status == 'unread'
+                            ? Colors.yellow.shade100
+                            : Colors.grey.shade200,
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.notifications,
+                            color: Colors.orange,
+                            size: 30,
+                          ),
+                          SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              message,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+          SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildFeatureCard(
+                context,
+                title: 'Pinjaman',
+                icon: Icons.account_balance_wallet,
+                color: Colors.blue,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => PinjamanPage()),
+                  );
+                },
               ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              userRole == 'admin'
-                  ? 'Anda login sebagai Admin'
-                  : 'Anda login sebagai Mahasiswa',
-              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
-            ),
-            SizedBox(height: 20),
-            Icon(Icons.account_balance, size: 60, color: Colors.green.shade600),
-          ],
+              _buildFeatureCard(
+                context,
+                title: 'Simpanan',
+                icon: Icons.savings,
+                color: Colors.green,
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => SimpananPage()),
+                  );
+                },
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFeatureCard(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Container(
+          width: MediaQuery.of(context).size.width * 0.4,
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 40, color: color),
+              SizedBox(height: 10),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+Future<void> addNotification(String userId, String message) async {
+  await FirebaseFirestore.instance
+      .collection('users')
+      .doc(userId)
+      .collection('notifications')
+      .add({
+        'message': message,
+        'status': 'unread',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+}
+
+Future<void> markNotificationAsRead(
+  String userId,
+  String notificationId,
+) async {
+  await FirebaseFirestore.instance
+      .collection('users')
+      .doc(userId)
+      .collection('notifications')
+      .doc(notificationId)
+      .update({'status': 'read'});
 }
