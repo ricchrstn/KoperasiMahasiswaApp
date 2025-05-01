@@ -202,7 +202,7 @@ class _RegistrationPageState extends State<RegistrationPage> {
                                   keyboardType: TextInputType.number,
                                   validator: (value) {
                                     if (value == null || value.isEmpty) {
-                                      return 'Please enter your NIM';
+                                      return 'Please enter yout NIM';
                                     }
                                     return null;
                                   },
