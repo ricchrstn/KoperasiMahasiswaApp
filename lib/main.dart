@@ -5,7 +5,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'pages/login_page.dart';
 import 'pages/registration_page.dart';
-import 'pages/admin_dashboard.dart';
 import 'pages/dashboard_page.dart';
 import 'services/firestore_service.dart';
 import 'firebase_options.dart';
