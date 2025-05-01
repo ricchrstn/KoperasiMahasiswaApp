@@ -371,6 +371,13 @@ class _PinjamanPageState extends State<PinjamanPage> {
                         title: Text('User ID'),
                         subtitle: Text(pinjamanData['userId']),
                       ),
+                    if (_userRole == 'admin' &&
+                        pinjamanData['userEmail'] != null)
+                      ListTile(
+                        leading: Icon(Icons.email),
+                        title: Text('Email Pengguna'),
+                        subtitle: Text(pinjamanData['userEmail']),
+                      ),
                     if (createdAt != null)
                       ListTile(
                         leading: Icon(Icons.date_range),
@@ -532,8 +539,11 @@ class _PinjamanPageState extends State<PinjamanPage> {
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
                   try {
+                    final userEmail =
+                        FirebaseAuth.instance.currentUser?.email ?? '-';
                     await _firestore.collection('pinjaman').add({
                       'userId': userId,
+                      'userEmail': userEmail,
                       'jumlah': int.parse(jumlahController.text),
                       'tujuan': tujuanController.text,
                       'keterangan': keteranganController.text,

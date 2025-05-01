@@ -599,8 +599,11 @@ class _SimpananPageState extends State<SimpananPage> {
                   onPressed: () async {
                     if (formKey.currentState!.validate()) {
                       try {
+                        final userEmail =
+                            FirebaseAuth.instance.currentUser?.email ?? '-';
                         await _firestore.collection('simpanan').add({
                           'userId': userId,
+                          'userEmail': userEmail,
                           'jumlah': int.parse(jumlahController.text),
                           'jenis': jenisSimpanan,
                           'keterangan': keteranganController.text,
