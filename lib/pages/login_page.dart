@@ -102,7 +102,7 @@ class _LoginPageState extends State<LoginPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Image.asset('images/logokopma.png', height: 120),
+                  Image.asset('assets/images/logokopma.png', height: 169),
                   SizedBox(height: 24),
                   Text(
                     'Welcome Back',
