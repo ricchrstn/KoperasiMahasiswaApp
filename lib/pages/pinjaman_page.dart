@@ -109,32 +109,81 @@ class _PinjamanPageState extends State<PinjamanPage> {
 
     if (user == null) {
       return Scaffold(
-        appBar: AppBar(title: Text('Pinjaman')),
-        body: Center(child: Text('Silakan login untuk melihat pinjaman')),
+        appBar: AppBar(
+          title: const Text('Pinjaman'),
+          backgroundColor: Colors.green,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red, size: 60),
+              const SizedBox(height: 16),
+              const Text(
+                'Silakan login untuk melihat pinjaman',
+                style: TextStyle(fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pushReplacementNamed('/login');
+                },
+                child: const Text('Login'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_userRole == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Pinjaman'),
+          backgroundColor: Colors.green,
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Memuat data...'),
+            ],
+          ),
+        ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
             Navigator.pushReplacementNamed(context, '/dashboard');
           },
         ),
         title: Text(_userRole == 'admin' ? 'Kelola Pinjaman' : 'Pinjaman Saya'),
         centerTitle: true,
+        backgroundColor: Colors.green,
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) => setState(() => _filterStatus = value),
             itemBuilder:
                 (context) => [
-                  PopupMenuItem(value: 'Semua', child: Text('Semua')),
-                  PopupMenuItem(value: 'Disetujui', child: Text('Disetujui')),
-                  PopupMenuItem(value: 'Menunggu', child: Text('Menunggu')),
-                  PopupMenuItem(value: 'Ditolak', child: Text('Ditolak')),
+                  const PopupMenuItem(value: 'Semua', child: Text('Semua')),
+                  const PopupMenuItem(
+                    value: 'Disetujui',
+                    child: Text('Disetujui'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'Menunggu',
+                    child: Text('Menunggu'),
+                  ),
+                  const PopupMenuItem(value: 'Ditolak', child: Text('Ditolak')),
                 ],
-            icon: Icon(Icons.filter_list),
+            icon: const Icon(Icons.filter_list),
           ),
         ],
       ),
@@ -145,7 +194,7 @@ class _PinjamanPageState extends State<PinjamanPage> {
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'Cari berdasarkan jumlah atau tanggal...',
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -168,10 +217,44 @@ class _PinjamanPageState extends State<PinjamanPage> {
                           .orderBy('createdAt', descending: true)
                           .snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.hasError)
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                if (snapshot.connectionState == ConnectionState.waiting)
-                  return Center(child: CircularProgressIndicator());
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 60,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error: ${snapshot.error}',
+                          style: const TextStyle(fontSize: 16),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => setState(() {}),
+                          child: const Text('Coba Lagi'),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Memuat data...'),
+                      ],
+                    ),
+                  );
+                }
 
                 var documents = snapshot.data!.docs;
 
@@ -315,14 +398,52 @@ class _PinjamanPageState extends State<PinjamanPage> {
   }
 
   Widget _buildStatusIcon(String? status) {
+    Color statusColor;
+    String statusText;
+    IconData statusIcon;
+
     switch (status) {
       case 'Disetujui':
-        return Icon(Icons.check_circle, color: Colors.green);
+        statusColor = Colors.green;
+        statusText = 'Disetujui';
+        statusIcon = Icons.check_circle;
+        break;
       case 'Ditolak':
-        return Icon(Icons.cancel, color: Colors.red);
+        statusColor = Colors.red;
+        statusText = 'Ditolak';
+        statusIcon = Icons.cancel;
+        break;
+      case 'Menunggu':
       default:
-        return Icon(Icons.access_time, color: Colors.orange);
+        statusColor = Colors.orange;
+        statusText = 'Menunggu';
+        statusIcon = Icons.access_time;
+        break;
     }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: statusColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(statusIcon, color: statusColor, size: 16),
+          const SizedBox(width: 4),
+          Text(
+            statusText,
+            style: TextStyle(
+              color: statusColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   void _showAddPinjamanDialog(BuildContext context, String userId) {

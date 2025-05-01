@@ -52,26 +52,67 @@ class _SimpananPageState extends State<SimpananPage> {
     final User? user = _auth.currentUser;
     if (user == null) {
       return Scaffold(
-        appBar: AppBar(title: Text('Simpanan')),
-        body: Center(child: Text('Silakan login')),
+        appBar: AppBar(
+          title: const Text('Simpanan'),
+          backgroundColor: Colors.green,
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.error_outline, color: Colors.red, size: 60),
+              const SizedBox(height: 16),
+              const Text(
+                'Silakan login untuk melihat simpanan',
+                style: TextStyle(fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pushReplacementNamed('/login');
+                },
+                child: const Text('Login'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_userRole == null) {
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Simpanan'),
+          backgroundColor: Colors.green,
+        ),
+        body: const Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Memuat data...'),
+            ],
+          ),
+        ),
       );
     }
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
-          icon: Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(
-                builder: (context) => DashboardPage(),
-              ), // <-- Pastikan DashboardPage ada/import
+              MaterialPageRoute(builder: (context) => DashboardPage()),
             );
           },
         ),
         title: Text(_userRole == 'admin' ? 'Kelola Simpanan' : 'Simpanan Saya'),
         centerTitle: true,
+        backgroundColor: Colors.green,
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -87,24 +128,41 @@ class _SimpananPageState extends State<SimpananPage> {
             },
             itemBuilder:
                 (context) => [
-                  PopupMenuItem(child: Text('Filter Tanggal'), enabled: false),
-                  PopupMenuItem(value: 'Semua', child: Text('Semua Tanggal')),
-                  PopupMenuItem(value: 'Bulan Ini', child: Text('Bulan Ini')),
-                  PopupMenuItem(
+                  const PopupMenuItem(
+                    child: Text('Filter Tanggal'),
+                    enabled: false,
+                  ),
+                  const PopupMenuItem(
+                    value: 'Semua',
+                    child: Text('Semua Tanggal'),
+                  ),
+                  const PopupMenuItem(
+                    value: 'Bulan Ini',
+                    child: Text('Bulan Ini'),
+                  ),
+                  const PopupMenuItem(
                     value: '3 Bulan Terakhir',
                     child: Text('3 Bulan Terakhir'),
                   ),
-                  PopupMenuDivider(),
-                  PopupMenuItem(child: Text('Jenis Simpanan'), enabled: false),
-                  PopupMenuItem(value: 'semua', child: Text('Semua Jenis')),
-                  PopupMenuItem(value: 'wajib', child: Text('Wajib')),
-                  PopupMenuItem(value: 'sukarela', child: Text('Sukarela')),
+                  const PopupMenuDivider(),
+                  const PopupMenuItem(
+                    child: Text('Jenis Simpanan'),
+                    enabled: false,
+                  ),
+                  const PopupMenuItem(
+                    value: 'semua',
+                    child: Text('Semua Jenis'),
+                  ),
+                  const PopupMenuItem(value: 'wajib', child: Text('Wajib')),
+                  const PopupMenuItem(
+                    value: 'sukarela',
+                    child: Text('Sukarela'),
+                  ),
                 ],
-            icon: Icon(Icons.filter_list),
+            icon: const Icon(Icons.filter_list),
           ),
         ],
       ),
-
       floatingActionButton:
           _userRole != 'admin'
               ? FloatingActionButton(
@@ -120,7 +178,7 @@ class _SimpananPageState extends State<SimpananPage> {
             child: TextField(
               decoration: InputDecoration(
                 hintText: 'Cari berdasarkan jumlah...',
-                prefixIcon: Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -147,10 +205,42 @@ class _SimpananPageState extends State<SimpananPage> {
                           .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.error_outline,
+                          color: Colors.red,
+                          size: 60,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Error: ${snapshot.error}',
+                          style: const TextStyle(fontSize: 16),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => setState(() {}),
+                          child: const Text('Coba Lagi'),
+                        ),
+                      ],
+                    ),
+                  );
                 }
+
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return Center(child: CircularProgressIndicator());
+                  return const Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text('Memuat data...'),
+                      ],
+                    ),
+                  );
                 }
 
                 var documents = snapshot.data!.docs;
@@ -534,6 +624,55 @@ class _SimpananPageState extends State<SimpananPage> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildStatusBadge(String? status) {
+    Color statusColor;
+    String statusText;
+    IconData statusIcon;
+
+    switch (status) {
+      case 'Disetujui':
+        statusColor = Colors.green;
+        statusText = 'Disetujui';
+        statusIcon = Icons.check_circle;
+        break;
+      case 'Ditolak':
+        statusColor = Colors.red;
+        statusText = 'Ditolak';
+        statusIcon = Icons.cancel;
+        break;
+      case 'Menunggu':
+      default:
+        statusColor = Colors.orange;
+        statusText = 'Menunggu';
+        statusIcon = Icons.access_time;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: statusColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: statusColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(statusIcon, color: statusColor, size: 16),
+          const SizedBox(width: 4),
+          Text(
+            statusText,
+            style: TextStyle(
+              color: statusColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
