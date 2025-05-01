@@ -217,6 +217,7 @@ class _LoginPageState extends State<LoginPage> {
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
+                                             color: Colors.white,
                                           ),
                                         ),
                               ),
@@ -236,7 +237,7 @@ class _LoginPageState extends State<LoginPage> {
                       ),
                       TextButton(
                         onPressed: () {
-                          Navigator.pushReplacement(
+                          Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => RegistrationPage(),
