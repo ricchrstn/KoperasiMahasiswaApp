@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:kopma/pages/about_page.dart';
 import 'package:provider/provider.dart';
 import 'pages/login_page.dart';
 import 'pages/registration_page.dart';
 import 'pages/dashboard_page.dart';
 import 'services/firestore_service.dart';
 import 'firebase_options.dart';
+import 'theme_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -23,7 +25,10 @@ void main() async {
     // Menjalankan aplikasi
     runApp(
       MultiProvider(
-        providers: [Provider(create: (_) => FirestoreService())],
+        providers: [
+          Provider(create: (_) => FirestoreService()),
+          ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ],
         child: const KoperasiApp(),
       ),
     );
@@ -81,9 +86,11 @@ class KoperasiApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
     return MaterialApp(
       title: 'Koperasi Mahasiswa',
       theme: ThemeData(
+        brightness: Brightness.light,
         primarySwatch: Colors.green,
         visualDensity: VisualDensity.adaptivePlatformDensity,
         appBarTheme: const AppBarTheme(
@@ -104,6 +111,17 @@ class KoperasiApp extends StatelessWidget {
           ),
         ),
       ),
+      darkTheme: ThemeData(
+        brightness: Brightness.dark,
+        primarySwatch: Colors.green,
+        appBarTheme: const AppBarTheme(
+          centerTitle: true,
+          elevation: 0,
+          backgroundColor: Colors.black,
+          foregroundColor: Colors.white,
+        ),
+      ),
+      themeMode: themeProvider.themeMode,
       debugShowCheckedModeBanner: false,
       initialRoute: '/login',
       routes: {
@@ -124,7 +142,7 @@ class KoperasiApp extends StatelessWidget {
   }
 }
 
-// Widget untuk menampilkan error jika Firebase gagal diinisialisasi
+// Mengganti teks bahasa Inggris ke bahasa Indonesia
 class FirebaseErrorApp extends StatelessWidget {
   const FirebaseErrorApp({super.key});
 
@@ -139,13 +157,13 @@ class FirebaseErrorApp extends StatelessWidget {
               const Icon(Icons.error_outline, size: 50, color: Colors.red),
               const SizedBox(height: 20),
               const Text(
-                'Failed to initialize Firebase',
+                'Gagal menginisialisasi Firebase',
                 style: TextStyle(fontSize: 18),
               ),
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: () => main(),
-                child: const Text('Retry'),
+                child: const Text('Coba Lagi'),
               ),
             ],
           ),

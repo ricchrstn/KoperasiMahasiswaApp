@@ -39,9 +39,9 @@ class _RegistrationPageState extends State<RegistrationPage> {
     try {
       UserCredential userCredential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+            email: _emailController.text.trim(),
+            password: _passwordController.text.trim(),
+          );
 
       // Update display name
       await userCredential.user?.updateDisplayName(_nameController.text.trim());
@@ -51,15 +51,15 @@ class _RegistrationPageState extends State<RegistrationPage> {
           .collection('users')
           .doc(userCredential.user!.uid)
           .set({
-        'email': _emailController.text.trim(),
-        'name': _nameController.text.trim(),
-        'role': 'mahasiswa',
-        'nim': _nimController.text.trim(),
-        'faculty': _facultyController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+            'email': _emailController.text.trim(),
+            'name': _nameController.text.trim(),
+            'role': 'mahasiswa',
+            'nim': _nimController.text.trim(),
+            'faculty': _facultyController.text.trim(),
+            'phone': _phoneController.text.trim(),
+            'createdAt': FieldValue.serverTimestamp(),
+            'updatedAt': FieldValue.serverTimestamp(),
+          });
 
       // Send email verification
       await userCredential.user?.sendEmailVerification();
@@ -68,9 +68,11 @@ class _RegistrationPageState extends State<RegistrationPage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => LoginPage(
-            successMessage: 'Registration successful! Please verify your email.',
-          ),
+          builder:
+              (context) => LoginPage(
+                successMessage:
+                    'Registration successful! Please verify your email.',
+              ),
         ),
       );
     } on FirebaseAuthException catch (e) {
@@ -119,10 +121,8 @@ class _RegistrationPageState extends State<RegistrationPage> {
         backgroundColor: Colors.green.shade700,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back), // Ikon back
-          onPressed: () {
-            Navigator.pop(context); // Kembali ke halaman sebelumnya
-          },
+          icon: Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Container(
@@ -329,18 +329,19 @@ class _RegistrationPageState extends State<RegistrationPage> {
                                       ),
                                       elevation: 2,
                                     ),
-                                    child: _isLoading
-                                        ? CircularProgressIndicator(
-                                            color: Colors.white,
-                                            strokeWidth: 3,
-                                          )
-                                        : Text(
-                                            'REGISTER',
-                                            style: TextStyle(
-                                              fontSize: 16,
-                                              fontWeight: FontWeight.bold,
+                                    child:
+                                        _isLoading
+                                            ? CircularProgressIndicator(
+                                              color: Colors.white,
+                                              strokeWidth: 3,
+                                            )
+                                            : Text(
+                                              'REGISTER',
+                                              style: TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
-                                          ),
                                   ),
                                 ),
                               ],

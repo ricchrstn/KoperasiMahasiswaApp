@@ -5,8 +5,9 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:kopma/pages/dashboard_page.dart';
 
-
 class SimpananPage extends StatefulWidget {
+  final VoidCallback? onBackToHome;
+  SimpananPage({this.onBackToHome, Key? key}) : super(key: key);
   @override
   _SimpananPageState createState() => _SimpananPageState();
 }
@@ -53,10 +54,6 @@ class _SimpananPageState extends State<SimpananPage> {
     final User? user = _auth.currentUser;
     if (user == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Simpanan'),
-          backgroundColor: Colors.green,
-        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -83,10 +80,6 @@ class _SimpananPageState extends State<SimpananPage> {
 
     if (_userRole == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Simpanan'),
-          backgroundColor: Colors.green,
-        ),
         body: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -102,67 +95,24 @@ class _SimpananPageState extends State<SimpananPage> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => DashboardPage()),
-            );
-          },
-        ),
-        title: Text(_userRole == 'admin' ? 'Kelola Simpanan' : 'Simpanan Saya'),
-        centerTitle: true,
-        backgroundColor: Colors.green,
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              setState(() {
-                if (value == 'Semua' ||
-                    value == 'Bulan Ini' ||
-                    value == '3 Bulan Terakhir') {
-                  _filterTanggal = value;
-                } else {
-                  _jenisSimpanan = value;
-                }
-              });
-            },
-            itemBuilder:
-                (context) => [
-                  const PopupMenuItem(
-                    child: Text('Filter Tanggal'),
-                    enabled: false,
-                  ),
-                  const PopupMenuItem(
-                    value: 'Semua',
-                    child: Text('Semua Tanggal'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'Bulan Ini',
-                    child: Text('Bulan Ini'),
-                  ),
-                  const PopupMenuItem(
-                    value: '3 Bulan Terakhir',
-                    child: Text('3 Bulan Terakhir'),
-                  ),
-                  const PopupMenuDivider(),
-                  const PopupMenuItem(
-                    child: Text('Jenis Simpanan'),
-                    enabled: false,
-                  ),
-                  const PopupMenuItem(
-                    value: 'semua',
-                    child: Text('Semua Jenis'),
-                  ),
-                  const PopupMenuItem(value: 'wajib', child: Text('Wajib')),
-                  const PopupMenuItem(
-                    value: 'sukarela',
-                    child: Text('Sukarela'),
-                  ),
-                ],
-            icon: const Icon(Icons.filter_list),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          _userRole == 'admin' ? 'Kelola Simpanan' : 'Simpanan Saya',
+          style: TextStyle(
+            color: Colors.green.shade800,
+            fontWeight: FontWeight.bold,
           ),
-        ],
+        ),
+        centerTitle: true,
+        iconTheme: IconThemeData(color: Colors.green.shade800),
+        leading:
+            widget.onBackToHome != null
+                ? IconButton(
+                  icon: Icon(Icons.arrow_back),
+                  onPressed: widget.onBackToHome,
+                )
+                : null,
       ),
       floatingActionButton:
           _userRole != 'admin'

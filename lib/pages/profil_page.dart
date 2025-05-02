@@ -9,6 +9,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:kopma/pages/dashboard_page.dart';
 
 class ProfilPage extends StatefulWidget {
+  final VoidCallback? onBackToHome;
+  ProfilPage({this.onBackToHome, Key? key}) : super(key: key);
   @override
   _ProfilPageState createState() => _ProfilPageState();
 }
@@ -338,15 +340,6 @@ class _ProfilPageState extends State<ProfilPage> {
                   _showUpdatePasswordDialog(context);
                 },
               ),
-              Divider(),
-              ListTile(
-                leading: Icon(Icons.logout, color: Colors.red),
-                title: Text('Keluar', style: TextStyle(color: Colors.red)),
-                onTap: () {
-                  Navigator.pop(context);
-                  _logout(context);
-                },
-              ),
             ],
           ),
         );
@@ -445,7 +438,6 @@ class _ProfilPageState extends State<ProfilPage> {
 
     if (user == null) {
       return Scaffold(
-        appBar: AppBar(title: Text('Profil')),
         body: Center(
           child: ElevatedButton(
             onPressed: () => Navigator.pushReplacementNamed(context, '/login'),
@@ -457,15 +449,28 @@ class _ProfilPageState extends State<ProfilPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Profil Anggota'),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: _navigateToDashboard,
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          'Profil Anggota',
+          style: TextStyle(
+            color: Colors.green.shade800,
+            fontWeight: FontWeight.bold,
+          ),
         ),
+        centerTitle: true,
+        iconTheme: IconThemeData(color: Colors.green.shade800),
+        leading:
+            widget.onBackToHome != null
+                ? IconButton(
+                  icon: Icon(Icons.arrow_back),
+                  onPressed: widget.onBackToHome,
+                )
+                : null,
         actions: [
           IconButton(
-            icon: Icon(Icons.edit),
-            onPressed: () => _showEditProfileDialog(context, user),
+            icon: Icon(Icons.edit, color: Colors.green.shade800),
+            onPressed: () => _showEditProfileDialog(context, user!),
           ),
         ],
       ),
@@ -538,7 +543,7 @@ class _ProfilPageState extends State<ProfilPage> {
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             Text(
-              user.email ?? 'Email tidak tersedia',
+              user.email ?? 'Surel tidak tersedia',
               style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
             SizedBox(height: 24),
@@ -549,13 +554,13 @@ class _ProfilPageState extends State<ProfilPage> {
                   children: [
                     ListTile(
                       leading: Icon(Icons.email, color: Colors.blue),
-                      title: Text('Email'),
+                      title: Text('Surel'),
                       subtitle: Text(user.email ?? '-'),
                     ),
                     Divider(),
                     ListTile(
                       leading: Icon(Icons.verified_user, color: Colors.green),
-                      title: Text('Verifikasi Email'),
+                      title: Text('Verifikasi Surel'),
                       subtitle: Text(
                         user.emailVerified
                             ? 'Terverifikasi'
@@ -637,7 +642,7 @@ class _ProfilPageState extends State<ProfilPage> {
                     ListTile(
                       leading: Icon(Icons.security, color: Colors.orange),
                       title: Text('Keamanan'),
-                      subtitle: Text('Perbarui password atau keluar'),
+                      subtitle: Text('Perbarui password'),
                       trailing: Icon(Icons.chevron_right),
                       onTap: () => _showSecurityOptions(context),
                     ),

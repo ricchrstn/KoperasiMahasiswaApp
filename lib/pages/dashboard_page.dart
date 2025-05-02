@@ -12,6 +12,9 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xlsio;
+import 'package:kopma/pages/about_page.dart';
+import 'package:provider/provider.dart';
+import '../theme_provider.dart';
 
 class DashboardPage extends StatefulWidget {
   @override
@@ -612,43 +615,16 @@ class _DashboardPageState extends State<DashboardPage> {
 
   Widget _buildUserDashboard() {
     final List<Widget> _pages = [
-      HomeContent(userRole: _userRole),
-      SimpananPage(),
-      PinjamanPage(),
-      ProfilPage(),
+      HomeContent(
+        userRole: _userRole,
+        onLogout: () => _showLogoutDialog(context),
+      ),
+      SimpananPage(onBackToHome: () => setState(() => _selectedIndex = 0)),
+      PinjamanPage(onBackToHome: () => setState(() => _selectedIndex = 0)),
+      ProfilPage(onBackToHome: () => setState(() => _selectedIndex = 0)),
     ];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Dashboard Koperasi'),
-        centerTitle: true,
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.logout),
-            onPressed: () => _logout(context),
-          ),
-        ],
-      ),
-      body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.savings), label: 'Simpanan'),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.account_balance),
-            label: 'Pinjaman',
-          ),
-          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.blue.shade800,
-        unselectedItemColor: Colors.grey.shade600,
-        backgroundColor: Colors.green.shade50,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        type: BottomNavigationBarType.fixed,
-      ),
-    );
+    return Scaffold(body: _pages[_selectedIndex]);
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -686,93 +662,202 @@ class _DashboardPageState extends State<DashboardPage> {
       }
     }
   }
+
+  // Added logout dialog functionality.
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: Text('Konfirmasi Logout'),
+            content: Text('Yakin ingin keluar dari aplikasi?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: Text('Batal'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await FirebaseAuth.instance.signOut();
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (context) => LoginPage()),
+                    (route) => false,
+                  );
+                },
+                child: Text('Logout', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+    );
+  }
 }
 
+// Updated HomeContent to improve layout and added logout functionality in AppBar.
 class HomeContent extends StatelessWidget {
   final String? userRole;
+  final VoidCallback? onLogout;
 
-  const HomeContent({Key? key, required this.userRole}) : super(key: key);
+  const HomeContent({Key? key, required this.userRole, this.onLogout})
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Colors.green[50]!, Colors.white],
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.themeMode == ThemeMode.dark;
+    return Scaffold(
+      body: Stack(
         children: [
-          Center(
+          Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.green[50]!, Colors.white],
+              ),
+            ),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
+                SizedBox(height: 12),
+                Image.asset(
+                  'assets/images/logokopma.png',
+                  width: 70,
+                  height: 70,
+                ),
+                SizedBox(height: 6),
                 Text(
                   'Selamat Datang di Koperasi',
                   style: TextStyle(
-                    fontSize: 24,
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
                     color: Colors.green.shade800,
                   ),
+                  textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 8),
-                Text(
-                  userRole == 'admin'
-                      ? 'Anda login sebagai Admin'
-                      : 'Anda login sebagai Mahasiswa',
-                  style: TextStyle(fontSize: 16, color: Colors.grey[600]),
+                SizedBox(height: 12),
+                Expanded(
+                  child: GridView.count(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: 10,
+                    crossAxisSpacing: 10,
+                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                    childAspectRatio: 0.95,
+                    children: [
+                      _buildMenuCard(
+                        context,
+                        icon: Icons.account_balance,
+                        title: 'Pinjaman',
+                        color: Colors.blue,
+                        onTap: () => _navigateToPage(context, 2),
+                      ),
+                      _buildMenuCard(
+                        context,
+                        icon: Icons.savings,
+                        title: 'Simpanan',
+                        color: Colors.green,
+                        onTap: () => _navigateToPage(context, 1),
+                      ),
+                      _buildMenuCard(
+                        context,
+                        icon: Icons.person,
+                        title: 'Profil',
+                        color: Colors.orange,
+                        onTap: () => _navigateToPage(context, 3),
+                      ),
+                      _buildMenuCard(
+                        context,
+                        icon: Icons.info,
+                        title: 'Tentang Pembuat',
+                        color: Colors.purple,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AboutPage(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
                 ),
-                SizedBox(height: 20),
-                Image.asset(
-                  'assets/images/logokopma.png',
-                  width: 150,
-                  height: 150,
-                ),
-                SizedBox(height: 20),
               ],
             ),
           ),
+          if (onLogout != null)
+            Positioned(
+              top: 10,
+              right: 54,
+              child: IconButton(
+                icon: Icon(
+                  isDark ? Icons.wb_sunny : Icons.nightlight_round,
+                  color: Colors.orange,
+                ),
+                tooltip: isDark ? 'Mode Terang' : 'Mode Gelap',
+                onPressed: () => themeProvider.toggleTheme(),
+              ),
+            ),
+          if (onLogout != null)
+            Positioned(
+              top: 10,
+              right: 10,
+              child: IconButton(
+                icon: Icon(Icons.logout, color: Colors.red),
+                tooltip: 'Logout',
+                onPressed: onLogout,
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildFeatureCard(
+  Widget _buildMenuCard(
     BuildContext context, {
-    required String title,
     required IconData icon,
+    required String title,
     required Color color,
     required VoidCallback onTap,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        child: Container(
-          width: MediaQuery.of(context).size.width * 0.4,
-          padding: EdgeInsets.all(16),
+    return Card(
+      elevation: 2,
+      margin: EdgeInsets.all(4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 40, color: color),
-              SizedBox(height: 10),
+              Icon(icon, size: 28, color: color),
+              SizedBox(height: 8),
               Text(
                 title,
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
-                ),
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
               ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  // Added the missing _navigateToPage method to the HomeContent class.
+  void _navigateToPage(BuildContext context, int index) {
+    final state = context.findAncestorStateOfType<_DashboardPageState>();
+    state?.setState(() {
+      state._selectedIndex = index;
+    });
+  }
+}
+
+// Added extension for accessing state.
+extension _FindDashboardState on BuildContext {
+  _DashboardPageState? findAncestorStateOfType<_DashboardPageState>() {
+    return findAncestorStateOfType<_DashboardPageState>();
   }
 }

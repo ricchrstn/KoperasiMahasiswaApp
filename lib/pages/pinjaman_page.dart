@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import 'package:kopma/services/anomaly_detection_service.dart';
 
 class PinjamanPage extends StatefulWidget {
+  final VoidCallback? onBackToHome;
+  PinjamanPage({this.onBackToHome, Key? key}) : super(key: key);
   @override
   _PinjamanPageState createState() => _PinjamanPageState();
 }
@@ -110,10 +112,6 @@ class _PinjamanPageState extends State<PinjamanPage> {
 
     if (user == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Pinjaman'),
-          backgroundColor: Colors.green,
-        ),
         body: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -140,10 +138,6 @@ class _PinjamanPageState extends State<PinjamanPage> {
 
     if (_userRole == null) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Pinjaman'),
-          backgroundColor: Colors.green,
-        ),
         body: const Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -159,35 +153,33 @@ class _PinjamanPageState extends State<PinjamanPage> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.pushReplacementNamed(context, '/dashboard');
-          },
-        ),
-        title: Text(_userRole == 'admin' ? 'Kelola Pinjaman' : 'Pinjaman Saya'),
-        centerTitle: true,
-        backgroundColor: Colors.green,
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) => setState(() => _filterStatus = value),
-            itemBuilder:
-                (context) => [
-                  const PopupMenuItem(value: 'Semua', child: Text('Semua')),
-                  const PopupMenuItem(
-                    value: 'Disetujui',
-                    child: Text('Disetujui'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'Menunggu',
-                    child: Text('Menunggu'),
-                  ),
-                  const PopupMenuItem(value: 'Ditolak', child: Text('Ditolak')),
-                ],
-            icon: const Icon(Icons.filter_list),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: Text(
+          _userRole == 'admin' ? 'Kelola Pinjaman' : 'Pinjaman Saya',
+          style: TextStyle(
+            color: Colors.green.shade800,
+            fontWeight: FontWeight.bold,
           ),
-        ],
+        ),
+        centerTitle: true,
+        iconTheme: IconThemeData(color: Colors.green.shade800),
+        leading:
+            widget.onBackToHome != null
+                ? IconButton(
+                  icon: Icon(Icons.arrow_back),
+                  onPressed: widget.onBackToHome,
+                )
+                : null,
       ),
+      floatingActionButton:
+          _userRole != 'admin'
+              ? FloatingActionButton(
+                onPressed: () => _showAddPinjamanDialog(context, user.uid),
+                child: Icon(Icons.add),
+                backgroundColor: Colors.green,
+              )
+              : null,
       body: Column(
         children: [
           Padding(
@@ -290,14 +282,6 @@ class _PinjamanPageState extends State<PinjamanPage> {
           ),
         ],
       ),
-      floatingActionButton:
-          _userRole != 'admin'
-              ? FloatingActionButton(
-                onPressed: () => _showAddPinjamanDialog(context, user.uid),
-                child: Icon(Icons.add),
-                backgroundColor: Colors.green,
-              )
-              : null,
     );
   }
 
@@ -463,7 +447,6 @@ class _PinjamanPageState extends State<PinjamanPage> {
       text: _dateFormat.format(DateTime.now()),
     );
 
-    
     showDialog(
       context: context,
       builder: (context) {
@@ -543,45 +526,52 @@ class _PinjamanPageState extends State<PinjamanPage> {
                   try {
                     // Cek anomali sebelum menyimpan
                     final anomalyService = AnomalyDetectionService();
-                    final anomalyCheck = await anomalyService.detectLoanAnomalies(userId);
-                    
+                    final anomalyCheck = await anomalyService
+                        .detectLoanAnomalies(userId);
+
                     if (anomalyCheck['isAnomaly']) {
                       // Tampilkan dialog peringatan
                       bool proceed = await showDialog(
                         context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text('Peringatan Anomali'),
-                          content: SingleChildScrollView(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Text('Sistem mendeteksi pola tidak biasa dalam pengajuan ini:'),
-                                const SizedBox(height: 10),
-                                ...(anomalyCheck['reasons'] as List).map(
-                                  (reason) => Text('- $reason')).toList(),
-                                const SizedBox(height: 20),
-                                const Text('Lanjutkan pengajuan?'),
+                        builder:
+                            (context) => AlertDialog(
+                              title: const Text('Peringatan Anomali'),
+                              content: SingleChildScrollView(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Text(
+                                      'Sistem mendeteksi pola tidak biasa dalam pengajuan ini:',
+                                    ),
+                                    const SizedBox(height: 10),
+                                    ...(anomalyCheck['reasons'] as List)
+                                        .map((reason) => Text('- $reason'))
+                                        .toList(),
+                                    const SizedBox(height: 20),
+                                    const Text('Lanjutkan pengajuan?'),
+                                  ],
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed:
+                                      () => Navigator.pop(context, false),
+                                  child: const Text('Batal'),
+                                ),
+                                TextButton(
+                                  onPressed: () => Navigator.pop(context, true),
+                                  child: const Text('Lanjutkan'),
+                                ),
                               ],
                             ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, false),
-                              child: const Text('Batal'),
-                            ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(context, true),
-                              child: const Text('Lanjutkan'),
-                            ),
-                          ],
-                        ),
                       );
-                      
+
                       if (!proceed) return;
                     }
 
                     // Lanjutkan proses penyimpanan jika tidak ada anomali atau pengguna memilih lanjutkan
-                    final userEmail = FirebaseAuth.instance.currentUser?.email ?? '-';
+                    final userEmail =
+                        FirebaseAuth.instance.currentUser?.email ?? '-';
                     await _firestore.collection('pinjaman').add({
                       'userId': userId,
                       'userEmail': userEmail,

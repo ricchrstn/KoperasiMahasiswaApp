@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:kopma/pages/admin_dashboard.dart';
 import 'package:kopma/pages/forgot_password_page.dart';
 import 'package:kopma/pages/dashboard_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'registration_page.dart';
 
 class LoginPage extends StatefulWidget {
@@ -23,6 +24,35 @@ class _LoginPageState extends State<LoginPage> {
   String _errorMessage = '';
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedCredentials();
+  }
+
+  Future<void> _loadRememberedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _emailController.text = prefs.getString('email') ?? '';
+      _passwordController.text = prefs.getString('password') ?? '';
+      _rememberMe = prefs.getBool('rememberMe') ?? false;
+    });
+  }
+
+  Future<void> _saveCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (_rememberMe) {
+      await prefs.setString('email', _emailController.text);
+      await prefs.setString('password', _passwordController.text);
+      await prefs.setBool('rememberMe', true);
+    } else {
+      await prefs.remove('email');
+      await prefs.remove('password');
+      await prefs.setBool('rememberMe', false);
+    }
+  }
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
@@ -183,6 +213,19 @@ class _LoginPageState extends State<LoginPage> {
                               },
                             ),
                             SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Checkbox(
+                                  value: _rememberMe,
+                                  onChanged: (value) {
+                                    setState(() {
+                                      _rememberMe = value ?? false;
+                                    });
+                                  },
+                                ),
+                                Text('Remember Me'),
+                              ],
+                            ),
                             if (_errorMessage.isNotEmpty)
                               Padding(
                                 padding: EdgeInsets.only(bottom: 16),
@@ -198,7 +241,13 @@ class _LoginPageState extends State<LoginPage> {
                               width: double.infinity,
                               height: 50,
                               child: ElevatedButton(
-                                onPressed: _isLoading ? null : _login,
+                                onPressed:
+                                    _isLoading
+                                        ? null
+                                        : () async {
+                                          await _saveCredentials();
+                                          _login();
+                                        },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.green.shade700,
                                   shape: RoundedRectangleBorder(
@@ -217,7 +266,7 @@ class _LoginPageState extends State<LoginPage> {
                                           style: TextStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.bold,
-                                             color: Colors.white,
+                                            color: Colors.white,
                                           ),
                                         ),
                               ),
