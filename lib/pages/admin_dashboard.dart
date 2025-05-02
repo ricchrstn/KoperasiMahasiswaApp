@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'user_verification.dart';
 import 'transaction_manage.dart';
 import '../services/export_service.dart';
+import '../services/anomaly_detection_service.dart';
 
 class AdminDashboard extends StatelessWidget {
   static const _cardSize = 160.0;
@@ -20,6 +21,61 @@ class AdminDashboard extends StatelessWidget {
   );
 
   AdminDashboard({super.key});
+
+
+  Widget _buildAnomalyAlerts(BuildContext context) {
+  return FutureBuilder<List<Map<String, dynamic>>>(
+    future: AnomalyDetectionService().checkNewLoansForAnomalies(),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const CircularProgressIndicator();
+      }
+      
+      if (snapshot.hasError) {
+        return Text('Error: ${snapshot.error}');
+      }
+      
+      final anomalies = snapshot.data ?? [];
+      
+      if (anomalies.isEmpty) {
+        return const ListTile(
+          leading: Icon(Icons.check_circle, color: Colors.green),
+          title: Text('Tidak ada anomali terdeteksi'),
+        );
+      }
+      
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Peringatan Anomali:',
+            style: TextStyle(fontWeight: FontWeight.bold, color: Colors.red),
+          ),
+          ...anomalies.map((anomaly) => Card(
+            color: Colors.red[50],
+            child: ListTile(
+              leading: const Icon(Icons.warning, color: Colors.orange),
+              title: Text('Anomali pengajuan dari ${anomaly['user_email']}'),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Jumlah: Rp${NumberFormat('#,###').format(anomaly['amount'])}'),
+                  ...(anomaly['anomaly_details']['reasons'] as List).map(
+                    (reason) => Text('- $reason')).toList(),
+                ],
+              ),
+              trailing: Text('${anomaly['date']}'),
+              onTap: () {
+                // Navigasi ke detail pinjaman
+              },
+            ),
+          )).toList(),
+        ],
+      );
+    },
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -106,6 +162,8 @@ class AdminDashboard extends StatelessWidget {
               ),
               child: _buildStatistics(context),
             ),
+            const SizedBox(height: 20),
+            _buildAnomalyAlerts(context), // Tambahkan widget ini di sini
             const SizedBox(height: 20),
             _buildBarChartSection(),
             const SizedBox(height: 20),

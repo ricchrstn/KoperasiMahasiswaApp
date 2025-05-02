@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:kopma/services/anomaly_detection_service.dart';
 
 class PinjamanPage extends StatefulWidget {
   @override
@@ -462,6 +463,7 @@ class _PinjamanPageState extends State<PinjamanPage> {
       text: _dateFormat.format(DateTime.now()),
     );
 
+    
     showDialog(
       context: context,
       builder: (context) {
@@ -539,8 +541,47 @@ class _PinjamanPageState extends State<PinjamanPage> {
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
                   try {
-                    final userEmail =
-                        FirebaseAuth.instance.currentUser?.email ?? '-';
+                    // Cek anomali sebelum menyimpan
+                    final anomalyService = AnomalyDetectionService();
+                    final anomalyCheck = await anomalyService.detectLoanAnomalies(userId);
+                    
+                    if (anomalyCheck['isAnomaly']) {
+                      // Tampilkan dialog peringatan
+                      bool proceed = await showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Peringatan Anomali'),
+                          content: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Text('Sistem mendeteksi pola tidak biasa dalam pengajuan ini:'),
+                                const SizedBox(height: 10),
+                                ...(anomalyCheck['reasons'] as List).map(
+                                  (reason) => Text('- $reason')).toList(),
+                                const SizedBox(height: 20),
+                                const Text('Lanjutkan pengajuan?'),
+                              ],
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, false),
+                              child: const Text('Batal'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(context, true),
+                              child: const Text('Lanjutkan'),
+                            ),
+                          ],
+                        ),
+                      );
+                      
+                      if (!proceed) return;
+                    }
+
+                    // Lanjutkan proses penyimpanan jika tidak ada anomali atau pengguna memilih lanjutkan
+                    final userEmail = FirebaseAuth.instance.currentUser?.email ?? '-';
                     await _firestore.collection('pinjaman').add({
                       'userId': userId,
                       'userEmail': userEmail,
@@ -550,6 +591,8 @@ class _PinjamanPageState extends State<PinjamanPage> {
                       'tanggal': tanggalController.text,
                       'status': 'Menunggu',
                       'createdAt': FieldValue.serverTimestamp(),
+                      'anomaly_checked': true,
+                      'anomaly_details': anomalyCheck,
                     });
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:kopma/pages/dashboard_page.dart';
 
+
 class SimpananPage extends StatefulWidget {
   @override
   _SimpananPageState createState() => _SimpananPageState();
