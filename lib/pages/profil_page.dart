@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:kopma/pages/dashboard_page.dart';
 
 class ProfilPage extends StatefulWidget {
   final VoidCallback? onBackToHome;
@@ -18,9 +16,7 @@ class ProfilPage extends StatefulWidget {
 class _ProfilPageState extends State<ProfilPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  File? _KTMImage;
   double _shu = 0;
-  String? _userRole;
   bool _isUploading = false;
 
   @override
@@ -37,7 +33,6 @@ class _ProfilPageState extends State<ProfilPage> {
         if (doc.exists) {
           setState(() {
             _shu = (doc.data()?['shu'] ?? 0).toDouble();
-            _userRole = doc.data()?['role'] ?? 'mahasiswa';
           });
         }
       }
@@ -46,31 +41,6 @@ class _ProfilPageState extends State<ProfilPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Gagal memuat data profil: ${e.toString()}')),
       );
-    }
-  }
-
-  Future<void> _addShuHistory(double amount, String description) async {
-    try {
-      final user = _auth.currentUser;
-      if (user != null) {
-        final docRef = _firestore.collection('users').doc(user.uid);
-        final newHistoryKey = DateTime.now().millisecondsSinceEpoch.toString();
-
-        await docRef.update({
-          'shu': FieldValue.increment(amount),
-          'shu_history.$newHistoryKey': {
-            'amount': amount,
-            'date': DateTime.now().toIso8601String(),
-            'description': description,
-          },
-        });
-
-        setState(() {
-          _shu += amount;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error adding SHU history: $e');
     }
   }
 
@@ -234,9 +204,7 @@ class _ProfilPageState extends State<ProfilPage> {
           context,
         ).showSnackBar(SnackBar(content: Text('Foto KTM berhasil diupload')));
 
-        setState(() {
-          _KTMImage = null;
-        });
+        setState(() {});
       }
     } catch (e) {
       debugPrint('Error details: $e');
@@ -248,14 +216,6 @@ class _ProfilPageState extends State<ProfilPage> {
         _isUploading = false;
       });
     }
-  }
-
-  void _navigateToDashboard() {
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(builder: (context) => DashboardPage()),
-      (Route<dynamic> route) => false,
-    );
   }
 
   void _showEditProfileDialog(BuildContext context, User user) {
@@ -421,17 +381,6 @@ class _ProfilPageState extends State<ProfilPage> {
     );
   }
 
-  void _logout(BuildContext context) async {
-    try {
-      await _auth.signOut();
-      Navigator.pushReplacementNamed(context, '/login');
-    } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Gagal logout: $e')));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final User? user = _auth.currentUser;
@@ -470,7 +419,7 @@ class _ProfilPageState extends State<ProfilPage> {
         actions: [
           IconButton(
             icon: Icon(Icons.edit, color: Colors.green.shade800),
-            onPressed: () => _showEditProfileDialog(context, user!),
+            onPressed: () => _showEditProfileDialog(context, user),
           ),
         ],
       ),

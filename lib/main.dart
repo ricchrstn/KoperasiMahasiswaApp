@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:kopma/pages/about_page.dart';
 import 'package:provider/provider.dart';
 import 'pages/login_page.dart';
 import 'pages/registration_page.dart';
@@ -110,6 +109,15 @@ class KoperasiApp extends StatelessWidget {
             ),
           ),
         ),
+        dialogTheme: DialogTheme(
+          backgroundColor: Colors.white,
+          titleTextStyle: const TextStyle(
+            color: Colors.black,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+          contentTextStyle: const TextStyle(color: Colors.black, fontSize: 16),
+        ),
       ),
       darkTheme: ThemeData(
         brightness: Brightness.dark,
@@ -119,6 +127,15 @@ class KoperasiApp extends StatelessWidget {
           elevation: 0,
           backgroundColor: Colors.black,
           foregroundColor: Colors.white,
+        ),
+        dialogTheme: DialogTheme(
+          backgroundColor: Colors.grey[900],
+          titleTextStyle: const TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+          ),
+          contentTextStyle: const TextStyle(color: Colors.white, fontSize: 16),
         ),
       ),
       themeMode: themeProvider.themeMode,

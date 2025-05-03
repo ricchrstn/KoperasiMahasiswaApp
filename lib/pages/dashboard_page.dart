@@ -15,6 +15,7 @@ import 'package:syncfusion_flutter_xlsio/xlsio.dart' as xlsio;
 import 'package:kopma/pages/about_page.dart';
 import 'package:provider/provider.dart';
 import '../theme_provider.dart';
+import 'feedback_page.dart';
 
 class DashboardPage extends StatefulWidget {
   @override
@@ -515,116 +516,120 @@ class _DashboardPageState extends State<DashboardPage> {
       );
     }
 
-    if (_userRole == 'admin') {
-      return Scaffold(
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.themeMode == ThemeMode.dark;
+
+    return WillPopScope(
+      onWillPop: () async {
+        // Mencegah error saat tombol back ditekan
+        return false;
+      },
+      child: Scaffold(
         appBar: AppBar(
-          title: const Text('Dashboard Admin'),
+          automaticallyImplyLeading: false, // Menghapus ikon back default
           backgroundColor: Colors.green,
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset('assets/images/logokopma.png', width: 40, height: 40),
+              SizedBox(width: 10),
+              Text(
+                'Koperasi Mahasiswa',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
           actions: [
             IconButton(
-              icon: const Icon(Icons.file_download),
-              tooltip: 'Ekspor Data',
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder:
-                      (context) => AlertDialog(
-                        title: const Text('Ekspor Data'),
-                        content: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            ListTile(
-                              leading: const Icon(Icons.account_balance_wallet),
-                              title: const Text('Data Pinjaman'),
-                              onTap: () {
-                                Navigator.pop(context);
-                                _exportData('Pinjaman');
-                              },
-                            ),
-                            ListTile(
-                              leading: const Icon(Icons.savings),
-                              title: const Text('Data Simpanan'),
-                              onTap: () {
-                                Navigator.pop(context);
-                                _exportData('Simpanan');
-                              },
-                            ),
-                          ],
+              icon: Icon(isDark ? Icons.wb_sunny : Icons.nightlight_round),
+              tooltip: isDark ? 'Mode Terang' : 'Mode Gelap',
+              onPressed: () => themeProvider.toggleTheme(),
+            ),
+            IconButton(
+              icon: const Icon(Icons.logout),
+              tooltip: 'Logout',
+              onPressed: () => _showLogoutDialog(context),
+            ),
+          ],
+        ),
+        body: Column(
+          children: [
+            SizedBox(height: 20),
+            Expanded(
+              child: GridView.count(
+                crossAxisCount: 2,
+                mainAxisSpacing: 10,
+                crossAxisSpacing: 10,
+                padding: EdgeInsets.all(16),
+                children: [
+                  _buildMenuCard(
+                    context,
+                    icon: Icons.account_balance,
+                    title: 'Pinjaman',
+                    color: Colors.blue,
+                    onTap:
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PinjamanPage(),
+                          ),
                         ),
-                      ),
-                );
-              },
-            ),
-            PopupMenuButton<String>(
-              icon: const Icon(Icons.more_vert),
-              onSelected: (value) async {
-                if (value == 'monthly_report') {
-                  final now = DateTime.now();
-                  final date = await showDatePicker(
-                    context: context,
-                    initialDate: now,
-                    firstDate: DateTime(2020),
-                    lastDate: now,
-                    initialDatePickerMode: DatePickerMode.year,
-                  );
-
-                  if (date != null && context.mounted) {
-                    _generateMonthlyReport(date);
-                  }
-                }
-              },
-              itemBuilder:
-                  (context) => [
-                    const PopupMenuItem(
-                      value: 'monthly_report',
-                      child: ListTile(
-                        leading: Icon(Icons.assessment),
-                        title: Text('Laporan Bulanan'),
-                      ),
-                    ),
-                  ],
+                  ),
+                  _buildMenuCard(
+                    context,
+                    icon: Icons.savings,
+                    title: 'Simpanan',
+                    color: Colors.green,
+                    onTap:
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => SimpananPage(),
+                          ),
+                        ),
+                  ),
+                  _buildMenuCard(
+                    context,
+                    icon: Icons.person,
+                    title: 'Profil',
+                    color: Colors.orange,
+                    onTap:
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => ProfilPage()),
+                        ),
+                  ),
+                  _buildMenuCard(
+                    context,
+                    icon: Icons.feedback,
+                    title: 'Feedback',
+                    color: Colors.purple,
+                    onTap:
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => FeedbackPage(),
+                          ),
+                        ),
+                  ),
+                  _buildMenuCard(
+                    context,
+                    icon: Icons.info,
+                    title: 'Tentang Pembuat',
+                    color: Colors.teal,
+                    onTap:
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (context) => AboutPage()),
+                        ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
-        body: AdminDashboard(),
-        bottomNavigationBar: BottomNavigationBar(
-          items: const <BottomNavigationBarItem>[
-            BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.savings),
-              label: 'Simpanan',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance),
-              label: 'Pinjaman',
-            ),
-            BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profil'),
-          ],
-          currentIndex: _selectedIndex,
-          selectedItemColor: Colors.blue.shade800,
-          unselectedItemColor: Colors.grey.shade600,
-          backgroundColor: Colors.green.shade50,
-          onTap: (index) => setState(() => _selectedIndex = index),
-          type: BottomNavigationBarType.fixed,
-        ),
-      );
-    }
-
-    return _buildUserDashboard();
-  }
-
-  Widget _buildUserDashboard() {
-    final List<Widget> _pages = [
-      HomeContent(
-        userRole: _userRole,
-        onLogout: () => _showLogoutDialog(context),
       ),
-      SimpananPage(onBackToHome: () => setState(() => _selectedIndex = 0)),
-      PinjamanPage(onBackToHome: () => setState(() => _selectedIndex = 0)),
-      ProfilPage(onBackToHome: () => setState(() => _selectedIndex = 0)),
-    ];
-
-    return Scaffold(body: _pages[_selectedIndex]);
+    );
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -633,7 +638,7 @@ class _DashboardPageState extends State<DashboardPage> {
       builder:
           (context) => AlertDialog(
             title: Text('Konfirmasi'),
-            content: Text('Yakin ingin logout?'),
+            content: Text('Yakin ingin Keluar?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
@@ -641,7 +646,7 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
               TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: Text('Logout'),
+                child: Text('Keluar'),
               ),
             ],
           ),
@@ -669,7 +674,7 @@ class _DashboardPageState extends State<DashboardPage> {
       context: context,
       builder:
           (context) => AlertDialog(
-            title: Text('Konfirmasi Logout'),
+            title: Text('Konfirmasi Keluar'),
             content: Text('Yakin ingin keluar dari aplikasi?'),
             actions: [
               TextButton(
@@ -690,6 +695,44 @@ class _DashboardPageState extends State<DashboardPage> {
               ),
             ],
           ),
+    );
+  }
+
+  void _navigateToPage(BuildContext context, int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  Widget _buildMenuCard(
+    BuildContext context, {
+    required IconData icon,
+    required String title,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Card(
+      elevation: 2,
+      margin: EdgeInsets.all(4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: onTap,
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 28, color: color),
+              SizedBox(height: 8),
+              Text(
+                title,
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

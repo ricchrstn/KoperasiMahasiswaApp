@@ -108,62 +108,64 @@ class _PinjamanPageState extends State<PinjamanPage> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final user = _auth.currentUser;
-
     if (user == null) {
       return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 60),
-              const SizedBox(height: 16),
-              const Text(
-                'Silakan login untuk melihat pinjaman',
-                style: TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pushReplacementNamed('/login');
-                },
-                child: const Text('Login'),
-              ),
-            ],
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, color: Colors.red, size: 60),
+                const SizedBox(height: 16),
+                const Text(
+                  'Silakan login untuk melihat pinjaman',
+                  style: TextStyle(fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.of(context).pushReplacementNamed('/login');
+                  },
+                  child: const Text('Login'),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
-
     if (_userRole == null) {
       return Scaffold(
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Memuat data...'),
-            ],
+        body: SafeArea(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(height: 16),
+                Text('Memuat data...'),
+              ],
+            ),
           ),
         ),
       );
     }
-
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
+        backgroundColor: theme.scaffoldBackgroundColor,
         elevation: 0,
         title: Text(
           _userRole == 'admin' ? 'Kelola Pinjaman' : 'Pinjaman Saya',
           style: TextStyle(
-            color: Colors.green.shade800,
+            color: theme.colorScheme.primary,
             fontWeight: FontWeight.bold,
           ),
         ),
         centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.green.shade800),
+        iconTheme: IconThemeData(color: theme.colorScheme.primary),
         leading:
             widget.onBackToHome != null
                 ? IconButton(
@@ -180,212 +182,237 @@ class _PinjamanPageState extends State<PinjamanPage> {
                 backgroundColor: Colors.green,
               )
               : null,
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Cari berdasarkan jumlah atau tanggal...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onChanged:
-                  (value) => setState(() => _searchQuery = value.toLowerCase()),
-            ),
-          ),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream:
-                  _userRole == 'admin'
-                      ? _firestore
-                          .collection('pinjaman')
-                          .orderBy('createdAt', descending: true)
-                          .snapshots()
-                      : _firestore
-                          .collection('pinjaman')
-                          .where('userId', isEqualTo: user.uid)
-                          .orderBy('createdAt', descending: true)
-                          .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: Colors.red,
-                          size: 60,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Error: ${snapshot.error}',
-                          style: const TextStyle(fontSize: 16),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => setState(() {}),
-                          child: const Text('Coba Lagi'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Memuat data...'),
-                      ],
-                    ),
-                  );
-                }
-
-                var documents = snapshot.data!.docs;
-
-                if (_filterStatus != 'Semua') {
-                  documents =
-                      documents
-                          .where(
-                            (doc) => (doc['status'] ?? '').toString().contains(
-                              _filterStatus,
-                            ),
-                          )
-                          .toList();
-                }
-
-                if (_searchQuery.isNotEmpty) {
-                  documents =
-                      documents.where((doc) {
-                        final jumlah = (doc['jumlah'] ?? '').toString();
-                        final tanggal = (doc['tanggal'] ?? '').toString();
-                        return jumlah.contains(_searchQuery) ||
-                            tanggal.contains(_searchQuery);
-                      }).toList();
-                }
-
-                if (documents.isEmpty) {
-                  return Center(child: Text('Belum ada data pinjaman'));
-                }
-
-                return _buildPinjamanList(documents);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPinjamanList(List<QueryDocumentSnapshot> documents) {
-    return ListView.builder(
-      itemCount: documents.length,
-      padding: EdgeInsets.all(8),
-      itemBuilder: (context, index) {
-        final pinjamanData = documents[index].data() as Map<String, dynamic>;
-        final createdAt = (pinjamanData['createdAt'] as Timestamp?)?.toDate();
-
-        return Card(
-          margin: EdgeInsets.all(8),
-          child: ExpansionTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.green[100],
-              child: Icon(Icons.money, color: Colors.green),
-            ),
-            title: Text(
-              _currencyFormat.format(pinjamanData['jumlah'] ?? 0),
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Tanggal: ${pinjamanData['tanggal'] ?? '-'}'),
-                Text('Status: ${pinjamanData['status'] ?? 'Menunggu'}'),
-              ],
-            ),
-            trailing:
-                _userRole == 'admin'
-                    ? PopupMenuButton<String>(
-                      onSelected:
-                          (value) => _updateStatus(
-                            documents[index].id,
-                            value,
-                            pinjamanData,
-                          ),
-                      itemBuilder:
-                          (context) => [
-                            PopupMenuItem(
-                              value: 'Disetujui',
-                              child: Text('Setujui'),
-                            ),
-                            PopupMenuItem(
-                              value: 'Ditolak',
-                              child: Text('Tolak'),
-                            ),
-                          ],
-                    )
-                    : _buildStatusIcon(pinjamanData['status']),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
             children: [
-              Padding(
-                padding: EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    if (pinjamanData['tujuan'] != null)
-                      ListTile(
-                        leading: Icon(Icons.label),
-                        title: Text('Tujuan'),
-                        subtitle: Text(pinjamanData['tujuan']),
-                      ),
-                    if (pinjamanData['keterangan'] != null)
-                      ListTile(
-                        leading: Icon(Icons.note),
-                        title: Text('Keterangan'),
-                        subtitle: Text(pinjamanData['keterangan']),
-                      ),
-                    if (_userRole == 'admin' && pinjamanData['userId'] != null)
-                      ListTile(
-                        leading: Icon(Icons.person),
-                        title: Text('User ID'),
-                        subtitle: Text(pinjamanData['userId']),
-                      ),
-                    if (_userRole == 'admin' &&
-                        pinjamanData['userEmail'] != null)
-                      ListTile(
-                        leading: Icon(Icons.email),
-                        title: Text('Email Pengguna'),
-                        subtitle: Text(pinjamanData['userEmail']),
-                      ),
-                    if (createdAt != null)
-                      ListTile(
-                        leading: Icon(Icons.date_range),
-                        title: Text('Diajukan'),
-                        subtitle: Text(_dateFormat.format(createdAt)),
-                      ),
-                    if (pinjamanData['status'] == 'Disetujui' &&
-                        _userRole != 'admin')
-                      ElevatedButton(
-                        onPressed:
-                            () => _showAddCicilanDialog(
-                              context,
-                              documents[index].id,
+              TextField(
+                decoration: InputDecoration(
+                  hintText: 'Cari berdasarkan jumlah atau tanggal...',
+                  prefixIcon: const Icon(Icons.search),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onChanged:
+                    (value) =>
+                        setState(() => _searchQuery = value.toLowerCase()),
+              ),
+              SizedBox(height: 8),
+              Expanded(
+                child: Container(
+                  color: theme.scaffoldBackgroundColor,
+                  child: StreamBuilder<QuerySnapshot>(
+                    stream:
+                        _userRole == 'admin'
+                            ? _firestore
+                                .collection('pinjaman')
+                                .orderBy('createdAt', descending: true)
+                                .snapshots()
+                            : _firestore
+                                .collection('pinjaman')
+                                .where('userId', isEqualTo: user.uid)
+                                .orderBy('createdAt', descending: true)
+                                .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: Colors.red,
+                                size: 60,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Error: {snapshot.error}',
+                                style: const TextStyle(fontSize: 16),
+                                textAlign: TextAlign.center,
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                onPressed: () => setState(() {}),
+                                child: const Text('Coba Lagi'),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              CircularProgressIndicator(),
+                              SizedBox(height: 16),
+                              Text('Memuat data...'),
+                            ],
+                          ),
+                        );
+                      }
+                      var documents = snapshot.data!.docs;
+
+                      if (_filterStatus != 'Semua') {
+                        documents =
+                            documents
+                                .where(
+                                  (doc) => (doc['status'] ?? '')
+                                      .toString()
+                                      .contains(_filterStatus),
+                                )
+                                .toList();
+                      }
+
+                      if (_searchQuery.isNotEmpty) {
+                        documents =
+                            documents.where((doc) {
+                              final jumlah = (doc['jumlah'] ?? '').toString();
+                              final tanggal = (doc['tanggal'] ?? '').toString();
+                              return jumlah.contains(_searchQuery) ||
+                                  tanggal.contains(_searchQuery);
+                            }).toList();
+                      }
+
+                      if (documents.isEmpty) {
+                        return Center(child: Text('Belum ada data pinjaman'));
+                      }
+                      return ListView.builder(
+                        itemCount: documents.length,
+                        itemBuilder: (context, index) {
+                          final pinjamanData =
+                              documents[index].data() as Map<String, dynamic>;
+                          final createdAt =
+                              (pinjamanData['createdAt'] as Timestamp?)
+                                  ?.toDate();
+                          return Card(
+                            color: theme.cardColor,
+                            margin: EdgeInsets.all(8),
+                            child: ExpansionTile(
+                              leading: CircleAvatar(
+                                backgroundColor: Colors.green[100],
+                                child: Icon(Icons.money, color: Colors.green),
+                              ),
+                              title: Text(
+                                _currencyFormat.format(
+                                  pinjamanData['jumlah'] ?? 0,
+                                ),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: theme.textTheme.bodyLarge?.color,
+                                ),
+                              ),
+                              subtitle: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Tanggal: ${pinjamanData['tanggal'] ?? '-'}',
+                                  ),
+                                  Text(
+                                    'Status: ${pinjamanData['status'] ?? 'Menunggu'}',
+                                  ),
+                                ],
+                              ),
+                              trailing:
+                                  _userRole == 'admin'
+                                      ? PopupMenuButton<String>(
+                                        onSelected:
+                                            (value) => _updateStatus(
+                                              documents[index].id,
+                                              value,
+                                              pinjamanData,
+                                            ),
+                                        itemBuilder:
+                                            (context) => [
+                                              PopupMenuItem(
+                                                value: 'Disetujui',
+                                                child: Text('Setujui'),
+                                              ),
+                                              PopupMenuItem(
+                                                value: 'Ditolak',
+                                                child: Text('Tolak'),
+                                              ),
+                                            ],
+                                      )
+                                      : _buildStatusIcon(
+                                        pinjamanData['status'],
+                                      ),
+                              children: [
+                                Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Column(
+                                    children: [
+                                      if (pinjamanData['tujuan'] != null)
+                                        ListTile(
+                                          leading: Icon(Icons.label),
+                                          title: Text('Tujuan'),
+                                          subtitle: Text(
+                                            pinjamanData['tujuan'],
+                                          ),
+                                        ),
+                                      if (pinjamanData['keterangan'] != null)
+                                        ListTile(
+                                          leading: Icon(Icons.note),
+                                          title: Text('Keterangan'),
+                                          subtitle: Text(
+                                            pinjamanData['keterangan'],
+                                          ),
+                                        ),
+                                      if (_userRole == 'admin' &&
+                                          pinjamanData['userId'] != null)
+                                        ListTile(
+                                          leading: Icon(Icons.person),
+                                          title: Text('User ID'),
+                                          subtitle: Text(
+                                            pinjamanData['userId'],
+                                          ),
+                                        ),
+                                      if (_userRole == 'admin' &&
+                                          pinjamanData['userEmail'] != null)
+                                        ListTile(
+                                          leading: Icon(Icons.email),
+                                          title: Text('Email Pengguna'),
+                                          subtitle: Text(
+                                            pinjamanData['userEmail'],
+                                          ),
+                                        ),
+                                      if (createdAt != null)
+                                        ListTile(
+                                          leading: Icon(Icons.date_range),
+                                          title: Text('Diajukan'),
+                                          subtitle: Text(
+                                            _dateFormat.format(createdAt),
+                                          ),
+                                        ),
+                                      if (pinjamanData['status'] ==
+                                              'Disetujui' &&
+                                          _userRole != 'admin')
+                                        ElevatedButton(
+                                          onPressed:
+                                              () => _showAddCicilanDialog(
+                                                context,
+                                                documents[index].id,
+                                              ),
+                                          child: Text('Bayar Cicilan'),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
-                        child: Text('Bayar Cicilan'),
-                      ),
-                  ],
+                          );
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
             ],
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 
@@ -524,6 +551,8 @@ class _PinjamanPageState extends State<PinjamanPage> {
               onPressed: () async {
                 if (formKey.currentState!.validate()) {
                   try {
+                    final userEmail =
+                        FirebaseAuth.instance.currentUser?.email ?? '-';
                     // Cek anomali sebelum menyimpan
                     final anomalyService = AnomalyDetectionService();
                     final anomalyCheck = await anomalyService
@@ -568,10 +597,6 @@ class _PinjamanPageState extends State<PinjamanPage> {
 
                       if (!proceed) return;
                     }
-
-                    // Lanjutkan proses penyimpanan jika tidak ada anomali atau pengguna memilih lanjutkan
-                    final userEmail =
-                        FirebaseAuth.instance.currentUser?.email ?? '-';
                     await _firestore.collection('pinjaman').add({
                       'userId': userId,
                       'userEmail': userEmail,
@@ -581,8 +606,8 @@ class _PinjamanPageState extends State<PinjamanPage> {
                       'tanggal': tanggalController.text,
                       'status': 'Menunggu',
                       'createdAt': FieldValue.serverTimestamp(),
-                      'anomaly_checked': true,
-                      'anomaly_details': anomalyCheck,
+                      'isAnomaly': anomalyCheck['isAnomaly'],
+                      'anomalyReasons': anomalyCheck['reasons'],
                     });
                     Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(

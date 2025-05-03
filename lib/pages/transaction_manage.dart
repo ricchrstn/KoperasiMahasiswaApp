@@ -254,8 +254,14 @@ class _TransactionManageScreenState extends State<TransactionManageScreen> {
     if (_isLoading) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Kelola Transaksi'),
-          backgroundColor: Colors.green,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: const Text(
+            'Kelola Transaksi',
+            style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+          ),
+          centerTitle: true,
+          iconTheme: const IconThemeData(color: Colors.green),
         ),
         body: const Center(
           child: Column(
@@ -273,8 +279,14 @@ class _TransactionManageScreenState extends State<TransactionManageScreen> {
     if (_errorMessage != null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Kelola Transaksi'),
-          backgroundColor: Colors.green,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: const Text(
+            'Kelola Transaksi',
+            style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+          ),
+          centerTitle: true,
+          iconTheme: const IconThemeData(color: Colors.green),
         ),
         body: Center(
           child: Column(
@@ -311,8 +323,14 @@ class _TransactionManageScreenState extends State<TransactionManageScreen> {
     if (!_isAdmin) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Kelola Transaksi'),
-          backgroundColor: Colors.green,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: const Text(
+            'Kelola Transaksi',
+            style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+          ),
+          centerTitle: true,
+          iconTheme: const IconThemeData(color: Colors.green),
         ),
         body: const Center(
           child: Text('Anda tidak memiliki akses ke halaman ini'),
@@ -324,11 +342,17 @@ class _TransactionManageScreenState extends State<TransactionManageScreen> {
       length: 2,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Kelola Transaksi'),
-          backgroundColor: Colors.green,
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: const Text(
+            'Kelola Transaksi',
+            style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+          ),
+          centerTitle: true,
+          iconTheme: const IconThemeData(color: Colors.green),
           actions: [
             PopupMenuButton<String>(
-              icon: const Icon(Icons.file_download),
+              icon: const Icon(Icons.file_download, color: Colors.green),
               tooltip: 'Ekspor Data',
               onSelected: _exportToExcel,
               itemBuilder:
@@ -344,10 +368,11 @@ class _TransactionManageScreenState extends State<TransactionManageScreen> {
                   ],
             ),
           ],
-          bottom: const TabBar(
-            tabs: [Tab(text: 'Pinjaman'), Tab(text: 'Simpanan')],
-            indicatorColor: Colors.white,
-            labelColor: Colors.white,
+          bottom: TabBar(
+            tabs: const [Tab(text: 'Pinjaman'), Tab(text: 'Simpanan')],
+            indicatorColor: Colors.green,
+            labelColor: Colors.green,
+            unselectedLabelColor: Colors.grey,
           ),
         ),
         body: const TabBarView(children: [PinjamanTab(), SimpananTab()]),

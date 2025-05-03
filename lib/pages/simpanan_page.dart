@@ -3,7 +3,6 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
-import 'package:kopma/pages/dashboard_page.dart';
 
 class SimpananPage extends StatefulWidget {
   final VoidCallback? onBackToHome;

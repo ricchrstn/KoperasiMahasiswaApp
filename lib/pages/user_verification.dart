@@ -11,7 +11,16 @@ class UserVerificationScreen extends StatelessWidget {
     final firestoreService = Provider.of<FirestoreService>(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Verifikasi User')),
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        title: const Text(
+          'Verifikasi User',
+          style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.green),
+      ),
       body: StreamBuilder<List<UserModel>>(
         stream: firestoreService.getUnverifiedUsers(),
         builder: (context, snapshot) {
