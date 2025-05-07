@@ -22,8 +22,6 @@ class _SimpananPageState extends State<SimpananPage> {
 
   String? _userRole;
   String _searchQuery = '';
-  String _filterTanggal = 'Semua';
-  String _jenisSimpanan = 'semua';
 
   @override
   void initState() {
@@ -50,378 +48,303 @@ class _SimpananPageState extends State<SimpananPage> {
 
   @override
   Widget build(BuildContext context) {
-    final User? user = _auth.currentUser;
-    if (user == null) {
-      return Scaffold(
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 60),
-              const SizedBox(height: 16),
-              const Text(
-                'Silakan login untuk melihat simpanan',
-                style: TextStyle(fontSize: 16),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pushReplacementNamed('/login');
-                },
-                child: const Text('Login'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    final user = FirebaseAuth.instance.currentUser;
 
-    if (_userRole == null) {
-      return Scaffold(
-        body: const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Memuat data...'),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        title: Text(
-          _userRole == 'admin' ? 'Kelola Simpanan' : 'Simpanan Saya',
-          style: TextStyle(
-            color: Colors.green.shade800,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-        iconTheme: IconThemeData(color: Colors.green.shade800),
-        leading:
-            widget.onBackToHome != null
-                ? IconButton(
-                  icon: Icon(Icons.arrow_back),
-                  onPressed: widget.onBackToHome,
-                )
-                : null,
-      ),
-      floatingActionButton:
-          _userRole != 'admin'
-              ? FloatingActionButton(
-                onPressed: () => _showAddSimpananDialog(context, user.uid),
-                child: Icon(Icons.add),
-                backgroundColor: Colors.blue,
-              )
-              : null,
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Cari berdasarkan jumlah...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value.toLowerCase();
-                });
-              },
+    return WillPopScope(
+      onWillPop: () async {
+        // Tambahkan logika jika diperlukan, misalnya menampilkan dialog konfirmasi
+        return true; // Mengizinkan navigasi kembali
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          title: Text(
+            _userRole == 'admin' ? 'Kelola Simpanan' : 'Simpanan Saya',
+            style: TextStyle(
+              color: Colors.green.shade800,
+              fontWeight: FontWeight.bold,
             ),
           ),
-          Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream:
-                  _userRole == 'admin'
-                      ? _firestore
-                          .collection('simpanan')
-                          .orderBy('createdAt', descending: true)
-                          .snapshots()
-                      : _firestore
-                          .collection('simpanan')
-                          .where('userId', isEqualTo: user.uid)
-                          .orderBy('createdAt', descending: true)
-                          .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(
-                          Icons.error_outline,
-                          color: Colors.red,
-                          size: 60,
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Error: ${snapshot.error}',
-                          style: const TextStyle(fontSize: 16),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () => setState(() {}),
-                          child: const Text('Coba Lagi'),
-                        ),
-                      ],
-                    ),
-                  );
-                }
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        CircularProgressIndicator(),
-                        SizedBox(height: 16),
-                        Text('Memuat data...'),
-                      ],
-                    ),
-                  );
-                }
-
-                var documents = snapshot.data!.docs;
-
-                // Filter tanggal
-                if (_filterTanggal != 'Semua') {
-                  final now = DateTime.now();
-                  documents =
-                      documents.where((doc) {
-                        final tanggal = DateTime.tryParse(doc['tanggal'] ?? '');
-                        if (tanggal == null) return false;
-                        if (_filterTanggal == 'Bulan Ini') {
-                          return tanggal.month == now.month &&
-                              tanggal.year == now.year;
-                        } else if (_filterTanggal == '3 Bulan Terakhir') {
-                          return now.difference(tanggal).inDays <= 90;
-                        }
-                        return true;
-                      }).toList();
-                }
-
-                // Filter jenis
-                if (_jenisSimpanan != 'semua') {
-                  documents =
-                      documents.where((doc) {
-                        final jenis =
-                            doc.data().toString().contains('jenis')
-                                ? (doc['jenis'] ?? 'sukarela')
-                                : 'sukarela';
-                        return jenis == _jenisSimpanan;
-                      }).toList();
-                }
-
-                // Search jumlah
-                if (_searchQuery.isNotEmpty) {
-                  documents =
-                      documents.where((doc) {
-                        final jumlah = (doc['jumlah'] ?? '').toString();
-                        return jumlah.contains(_searchQuery);
-                      }).toList();
-                }
-
-                if (documents.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.savings, size: 50, color: Colors.blue),
-                        SizedBox(height: 16),
-                        Text('Belum ada data simpanan'),
-                        if (_userRole != 'admin')
-                          Padding(
-                            padding: const EdgeInsets.only(top: 16.0),
-                            child: ElevatedButton(
-                              onPressed:
-                                  () =>
-                                      _showAddSimpananDialog(context, user.uid),
-                              child: Text('Tambah Simpanan'),
-                            ),
-                          ),
-                      ],
-                    ),
-                  );
-                }
-
-                // Hitung total
-                double totalWajib = documents
-                    .where((doc) {
-                      final jenis =
-                          doc.data().toString().contains('jenis')
-                              ? (doc['jenis'] ?? 'sukarela')
-                              : 'sukarela';
-                      return jenis == 'wajib';
-                    })
-                    .fold(
-                      0,
-                      (sum, doc) =>
-                          sum + ((doc.data() as Map)['jumlah'] ?? 0).toDouble(),
-                    );
-
-                double totalSukarela = documents
-                    .where((doc) {
-                      final jenis =
-                          doc.data().toString().contains('jenis')
-                              ? (doc['jenis'] ?? 'sukarela')
-                              : 'sukarela';
-                      return jenis == 'sukarela';
-                    })
-                    .fold(
-                      0,
-                      (sum, doc) =>
-                          sum + ((doc.data() as Map)['jumlah'] ?? 0).toDouble(),
-                    );
-
-                double total = totalWajib + totalSukarela;
-
-                return Column(
+          centerTitle: true,
+          iconTheme: IconThemeData(color: Colors.green.shade800),
+          leading:
+              widget.onBackToHome != null
+                  ? IconButton(
+                    icon: Icon(Icons.arrow_back),
+                    onPressed: widget.onBackToHome,
+                  )
+                  : null,
+        ),
+        floatingActionButton:
+            user != null
+                ? FloatingActionButton(
+                  onPressed: () => _showAddSimpananDialog(context, user.uid),
+                  child: Icon(Icons.add),
+                  backgroundColor: Colors.blue,
+                )
+                : null,
+        body:
+            user == null
+                ? Center(child: Text('Tidak ada data pengguna yang tersedia.'))
+                : Column(
                   children: [
-                    Card(
-                      margin: EdgeInsets.all(16),
-                      elevation: 4,
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Column(
-                          children: [
-                            Text(
-                              'Total Simpanan',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey,
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              _currencyFormat.format(total),
-                              style: TextStyle(
-                                fontSize: 28,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.green,
-                              ),
-                            ),
-                            SizedBox(height: 16),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceAround,
-                              children: [
-                                Column(
-                                  children: [
-                                    Text(
-                                      'Wajib',
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                    Text(
-                                      _currencyFormat.format(totalWajib),
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.blue,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                Column(
-                                  children: [
-                                    Text(
-                                      'Sukarela',
-                                      style: TextStyle(color: Colors.grey),
-                                    ),
-                                    Text(
-                                      _currencyFormat.format(totalSukarela),
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.green,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ],
+                    Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: TextField(
+                        decoration: InputDecoration(
+                          hintText: 'Cari berdasarkan jumlah...',
+                          prefixIcon: const Icon(Icons.search),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value.toLowerCase();
+                          });
+                        },
                       ),
                     ),
                     Expanded(
-                      child: ListView.builder(
-                        itemCount: documents.length,
-                        itemBuilder: (context, index) {
-                          final simpanan =
-                              documents[index].data() as Map<String, dynamic>;
-                          final jenis =
-                              simpanan.containsKey('jenis')
-                                  ? simpanan['jenis']
-                                  : 'sukarela';
-
-                          return Card(
-                            margin: EdgeInsets.all(8),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor:
-                                    jenis == 'wajib'
-                                        ? Colors.blue[100]
-                                        : Colors.green[100],
-                                child: Icon(
-                                  Icons.savings,
-                                  color:
-                                      jenis == 'wajib'
-                                          ? Colors.blue
-                                          : Colors.green,
-                                ),
-                              ),
-                              title: Text(
-                                _currencyFormat.format(simpanan['jumlah']),
-                                style: TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                              subtitle: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                      child: StreamBuilder<QuerySnapshot>(
+                        stream:
+                            _userRole == 'admin'
+                                ? _firestore
+                                    .collection('simpanan')
+                                    .orderBy('createdAt', descending: true)
+                                    .snapshots()
+                                : _firestore
+                                    .collection('simpanan')
+                                    .where('userId', isEqualTo: user.uid)
+                                    .orderBy('createdAt', descending: true)
+                                    .snapshots(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasError) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Text(
-                                    'Tanggal: ${simpanan['tanggal'] ?? '-'}',
+                                  const Icon(
+                                    Icons.error_outline,
+                                    color: Colors.red,
+                                    size: 60,
                                   ),
+                                  const SizedBox(height: 16),
                                   Text(
-                                    'Jenis: ${jenis == 'wajib' ? 'Wajib' : 'Sukarela'}',
+                                    'Error: ${snapshot.error}',
+                                    style: const TextStyle(fontSize: 16),
+                                    textAlign: TextAlign.center,
                                   ),
-                                  if (simpanan['keterangan'] != null)
-                                    Text(
-                                      'Keterangan: ${simpanan['keterangan']}',
-                                    ),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                    onPressed: () => setState(() {}),
+                                    child: const Text('Coba Lagi'),
+                                  ),
                                 ],
                               ),
-                              trailing:
-                                  _userRole != 'admin'
-                                      ? IconButton(
-                                        icon: Icon(
-                                          Icons.delete,
-                                          color: Colors.red,
+                            );
+                          }
+
+                          if (snapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  CircularProgressIndicator(),
+                                  SizedBox(height: 16),
+                                  Text('Memuat data...'),
+                                ],
+                              ),
+                            );
+                          }
+
+                          var documents = snapshot.data!.docs;
+
+                          if (_searchQuery.isNotEmpty) {
+                            documents =
+                                documents.where((doc) {
+                                  final jumlah =
+                                      (doc['jumlah'] ?? '').toString();
+                                  return jumlah.contains(_searchQuery);
+                                }).toList();
+                          }
+
+                          if (documents.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.savings,
+                                    size: 50,
+                                    color: Colors.blue,
+                                  ),
+                                  SizedBox(height: 16),
+                                  Text('Belum ada data simpanan'),
+                                ],
+                              ),
+                            );
+                          }
+
+                          double totalWajib = documents
+                              .where((doc) => doc['jenis'] == 'wajib')
+                              .fold(
+                                0,
+                                (sum, doc) => sum + (doc['jumlah'] ?? 0),
+                              );
+
+                          double totalSukarela = documents
+                              .where((doc) => doc['jenis'] == 'sukarela')
+                              .fold(
+                                0,
+                                (sum, doc) => sum + (doc['jumlah'] ?? 0),
+                              );
+
+                          return Column(
+                            children: [
+                              Card(
+                                margin: EdgeInsets.all(16),
+                                elevation: 4,
+                                child: Padding(
+                                  padding: EdgeInsets.all(16),
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        'Total Simpanan',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          color: Colors.grey,
                                         ),
-                                        onPressed:
-                                            () => _deleteSimpanan(
-                                              documents[index].id,
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        _currencyFormat.format(
+                                          totalWajib + totalSukarela,
+                                        ),
+                                        style: TextStyle(
+                                          fontSize: 28,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.green,
+                                        ),
+                                      ),
+                                      SizedBox(height: 16),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceAround,
+                                        children: [
+                                          Column(
+                                            children: [
+                                              Text(
+                                                'Wajib',
+                                                style: TextStyle(
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                              Text(
+                                                _currencyFormat.format(
+                                                  totalWajib,
+                                                ),
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.blue,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          Column(
+                                            children: [
+                                              Text(
+                                                'Sukarela',
+                                                style: TextStyle(
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                              Text(
+                                                _currencyFormat.format(
+                                                  totalSukarela,
+                                                ),
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.green,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: ListView.builder(
+                                  itemCount: documents.length,
+                                  itemBuilder: (context, index) {
+                                    final simpanan =
+                                        documents[index].data()
+                                            as Map<String, dynamic>;
+                                    return Card(
+                                      margin: EdgeInsets.all(8),
+                                      child: ListTile(
+                                        leading: CircleAvatar(
+                                          backgroundColor:
+                                              simpanan['jenis'] == 'wajib'
+                                                  ? Colors.blue[100]
+                                                  : Colors.green[100],
+                                          child: Icon(
+                                            Icons.savings,
+                                            color:
+                                                simpanan['jenis'] == 'wajib'
+                                                    ? Colors.blue
+                                                    : Colors.green,
+                                          ),
+                                        ),
+                                        title: Text(
+                                          _currencyFormat.format(
+                                            simpanan['jumlah'],
+                                          ),
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                        subtitle: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              'Tanggal: ${simpanan['tanggal'] ?? '-'}',
                                             ),
-                                      )
-                                      : null,
-                            ),
+                                            Text('Jenis: ${simpanan['jenis']}'),
+                                            if (simpanan['keterangan'] != null)
+                                              Text(
+                                                'Keterangan: ${simpanan['keterangan']}',
+                                              ),
+                                          ],
+                                        ),
+                                        trailing: IconButton(
+                                          icon: Icon(
+                                            Icons.delete,
+                                            color: Colors.red,
+                                          ),
+                                          onPressed:
+                                              () => _deleteSimpanan(
+                                                documents[index].id,
+                                              ),
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                            ],
                           );
                         },
                       ),
                     ),
                   ],
-                );
-              },
-            ),
-          ),
-        ],
+                ),
       ),
     );
   }
@@ -577,55 +500,6 @@ class _SimpananPageState extends State<SimpananPage> {
           },
         );
       },
-    );
-  }
-
-  Widget _buildStatusBadge(String? status) {
-    Color statusColor;
-    String statusText;
-    IconData statusIcon;
-
-    switch (status) {
-      case 'Disetujui':
-        statusColor = Colors.green;
-        statusText = 'Disetujui';
-        statusIcon = Icons.check_circle;
-        break;
-      case 'Ditolak':
-        statusColor = Colors.red;
-        statusText = 'Ditolak';
-        statusIcon = Icons.cancel;
-        break;
-      case 'Menunggu':
-      default:
-        statusColor = Colors.orange;
-        statusText = 'Menunggu';
-        statusIcon = Icons.access_time;
-        break;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: statusColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: statusColor),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(statusIcon, color: statusColor, size: 16),
-          const SizedBox(width: 4),
-          Text(
-            statusText,
-            style: TextStyle(
-              color: statusColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -28,3 +28,14 @@ class ThemeProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
+
+class ChartRangeProvider with ChangeNotifier {
+  int _range = 1; // Default range is 1 month
+
+  int get range => _range;
+
+  void setRange(int newRange) {
+    _range = newRange;
+    notifyListeners();
+  }
+}

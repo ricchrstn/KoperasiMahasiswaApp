@@ -5,7 +5,6 @@ import 'package:kopma/pages/login_page.dart';
 import 'simpanan_page.dart';
 import 'pinjaman_page.dart';
 import 'profil_page.dart';
-import 'admin_dashboard.dart';
 import 'package:intl/intl.dart';
 import 'package:excel/excel.dart' as excel;
 import 'dart:io';
@@ -16,6 +15,7 @@ import 'package:kopma/pages/about_page.dart';
 import 'package:provider/provider.dart';
 import '../theme_provider.dart';
 import 'feedback_page.dart';
+import 'package:flutter/cupertino.dart';
 
 class DashboardPage extends StatefulWidget {
   @override
@@ -528,14 +528,31 @@ class _DashboardPageState extends State<DashboardPage> {
         appBar: AppBar(
           automaticallyImplyLeading: false, // Menghapus ikon back default
           backgroundColor: Colors.green,
+          flexibleSpace: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.green.shade700, Colors.green.shade400],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
           title: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Image.asset('assets/images/logokopma.png', width: 40, height: 40),
-              SizedBox(width: 10),
+              Image.asset(
+                'assets/images/logokopma.png',
+                width: 60, // Memperbesar logo
+                height: 60,
+              ),
+              SizedBox(width: 15),
               Text(
                 'Koperasi Mahasiswa',
-                style: TextStyle(fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 24, // Memperbesar ukuran teks
+                  color: Colors.white,
+                ),
               ),
             ],
           ),

@@ -14,7 +14,6 @@ import '../theme_provider.dart';
 class AdminDashboard extends StatelessWidget {
   static const _cardSize = 160.0;
   static const _chartHeight = 300.0;
-  static const _monthsToShow = 6;
   static const _recentTransactionsLimit = 5;
 
   late final NumberFormat _currencyFormat = NumberFormat.currency(
@@ -60,46 +59,109 @@ class AdminDashboard extends StatelessWidget {
             icon: const Icon(Icons.more_vert, color: Colors.green),
             onSelected: (value) async {
               switch (value) {
-                case 'Export Pinjaman':
-                  await ExportService.exportPinjaman(context);
+                case 'Export Pinjaman PDF':
+                  await ExportService.exportToPDF(
+                    context,
+                    await _fetchPinjamanData(),
+                    'Laporan Pinjaman',
+                  );
                   break;
-                case 'Export Simpanan':
-                  await ExportService.exportSimpanan(context);
+                case 'Export Pinjaman Excel':
+                  await ExportService.exportToExcel(
+                    context,
+                    await _fetchPinjamanData(),
+                    'Laporan Pinjaman',
+                  );
                   break;
-                case 'Export Users':
-                  await ExportService.exportUsers(context);
+                case 'Export Simpanan PDF':
+                  await ExportService.exportToPDF(
+                    context,
+                    await _fetchSimpananData(),
+                    'Laporan Simpanan',
+                  );
+                  break;
+                case 'Export Simpanan Excel':
+                  await ExportService.exportToExcel(
+                    context,
+                    await _fetchSimpananData(),
+                    'Laporan Simpanan',
+                  );
+                  break;
+                case 'Export Users PDF':
+                  await ExportService.exportToPDF(
+                    context,
+                    await _fetchUserData(),
+                    'Laporan Users',
+                  );
+                  break;
+                case 'Export Users Excel':
+                  await ExportService.exportToExcel(
+                    context,
+                    await _fetchUserData(),
+                    'Laporan Users',
+                  );
                   break;
               }
             },
             itemBuilder:
                 (context) => const [
                   PopupMenuItem(
-                    value: 'Export Pinjaman',
+                    value: 'Export Pinjaman PDF',
                     child: Row(
                       children: [
-                        Icon(Icons.file_download),
+                        Icon(Icons.picture_as_pdf),
                         SizedBox(width: 8),
-                        Text('Export Pinjaman'),
+                        Text('Export Pinjaman (PDF)'),
                       ],
                     ),
                   ),
                   PopupMenuItem(
-                    value: 'Export Simpanan',
+                    value: 'Export Pinjaman Excel',
                     child: Row(
                       children: [
-                        Icon(Icons.file_download),
+                        Icon(Icons.table_chart),
                         SizedBox(width: 8),
-                        Text('Export Simpanan'),
+                        Text('Export Pinjaman (Excel)'),
                       ],
                     ),
                   ),
                   PopupMenuItem(
-                    value: 'Export Users',
+                    value: 'Export Simpanan PDF',
                     child: Row(
                       children: [
-                        Icon(Icons.file_download),
+                        Icon(Icons.picture_as_pdf),
                         SizedBox(width: 8),
-                        Text('Export Users'),
+                        Text('Export Simpanan (PDF)'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'Export Simpanan Excel',
+                    child: Row(
+                      children: [
+                        Icon(Icons.table_chart),
+                        SizedBox(width: 8),
+                        Text('Export Simpanan (Excel)'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'Export Users PDF',
+                    child: Row(
+                      children: [
+                        Icon(Icons.picture_as_pdf),
+                        SizedBox(width: 8),
+                        Text('Export Users (PDF)'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'Export Users Excel',
+                    child: Row(
+                      children: [
+                        Icon(Icons.table_chart),
+                        SizedBox(width: 8),
+                        Text('Export Users (Excel)'),
                       ],
                     ),
                   ),
@@ -301,7 +363,7 @@ class AdminDashboard extends StatelessWidget {
                 const SizedBox(height: 20),
                 _buildAnomalyAlerts(context),
                 const SizedBox(height: 20),
-                _buildBarChartSection(),
+                _buildBarChartSection(context),
                 const SizedBox(height: 20),
                 _buildRecentTransactions(),
                 const SizedBox(height: 20),
@@ -451,13 +513,34 @@ class AdminDashboard extends StatelessWidget {
     );
   }
 
-  Widget _buildBarChartSection() {
+  Widget _buildBarChartSection(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Statistik Koperasi (6 Bulan Terakhir)',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text(
+              'Statistik Koperasi',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            DropdownButton<int>(
+              value: Provider.of<ChartRangeProvider>(context).range,
+              items: const [
+                DropdownMenuItem(value: 1, child: Text('1 Bulan')),
+                DropdownMenuItem(value: 6, child: Text('6 Bulan')),
+                DropdownMenuItem(value: 12, child: Text('1 Tahun')),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  Provider.of<ChartRangeProvider>(
+                    context,
+                    listen: false,
+                  ).setRange(value);
+                }
+              },
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         Container(
@@ -475,13 +558,16 @@ class AdminDashboard extends StatelessWidget {
               ),
             ],
           ),
-          child: _buildBarChart(),
+          child: _buildBarChart(context),
         ),
+        const SizedBox(height: 16),
+        _buildLegend(),
       ],
     );
   }
 
-  Widget _buildBarChart() {
+  Widget _buildBarChart(BuildContext context) {
+    final range = Provider.of<ChartRangeProvider>(context).range;
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('pinjaman').snapshots(),
       builder: (context, pinjamanSnapshot) {
@@ -538,13 +624,14 @@ class AdminDashboard extends StatelessWidget {
               final chartData = _prepareChartData(
                 pinjamanSnapshot.data!.docs,
                 simpananSnapshot.data!.docs,
+                range,
               );
 
               return BarChart(
                 BarChartData(
                   alignment: BarChartAlignment.spaceAround,
                   maxY: _calculateMaxY(chartData.pinjaman, chartData.simpanan),
-                  barGroups: List.generate(_monthsToShow, (index) {
+                  barGroups: List.generate(range, (index) {
                     return BarChartGroupData(
                       x: index,
                       barRods: [
@@ -575,7 +662,7 @@ class AdminDashboard extends StatelessWidget {
                         getTitlesWidget: (value, meta) {
                           final now = DateTime.now();
                           final month = now.subtract(
-                            Duration(days: 30 * (5 - value.toInt())),
+                            Duration(days: 30 * (range - value.toInt() - 1)),
                           );
                           return Padding(
                             padding: const EdgeInsets.only(top: 8),
@@ -637,10 +724,11 @@ class AdminDashboard extends StatelessWidget {
   _ChartData _prepareChartData(
     List<QueryDocumentSnapshot<Object?>> pinjamanDocs,
     List<QueryDocumentSnapshot<Object?>> simpananDocs,
+    int range,
   ) {
     final now = DateTime.now();
-    final dataPinjaman = List<double>.filled(_monthsToShow, 0);
-    final dataSimpanan = List<double>.filled(_monthsToShow, 0);
+    final dataPinjaman = List<double>.filled(range, 0);
+    final dataSimpanan = List<double>.filled(range, 0);
 
     for (final doc in pinjamanDocs) {
       try {
@@ -652,8 +740,8 @@ class AdminDashboard extends StatelessWidget {
 
         final monthsAgo =
             (now.year - tanggal.year) * 12 + (now.month - tanggal.month);
-        if (monthsAgo >= 0 && monthsAgo < _monthsToShow) {
-          dataPinjaman[_monthsToShow - 1 - monthsAgo] += 1;
+        if (monthsAgo >= 0 && monthsAgo < range) {
+          dataPinjaman[range - 1 - monthsAgo] += 1;
         }
       } catch (e) {
         debugPrint('Error processing pinjaman document: $e');
@@ -670,8 +758,8 @@ class AdminDashboard extends StatelessWidget {
 
         final monthsAgo =
             (now.year - tanggal.year) * 12 + (now.month - tanggal.month);
-        if (monthsAgo >= 0 && monthsAgo < _monthsToShow) {
-          dataSimpanan[_monthsToShow - 1 - monthsAgo] += 1;
+        if (monthsAgo >= 0 && monthsAgo < range) {
+          dataSimpanan[range - 1 - monthsAgo] += 1;
         }
       } catch (e) {
         debugPrint('Error processing simpanan document: $e');
@@ -684,7 +772,12 @@ class AdminDashboard extends StatelessWidget {
   double _calculateMaxY(List<double> a, List<double> b) {
     final maxA = a.isNotEmpty ? a.reduce((a, b) => a > b ? a : b) : 0;
     final maxB = b.isNotEmpty ? b.reduce((a, b) => a > b ? a : b) : 0;
-    return (maxA > maxB ? maxA : maxB) + 2;
+    final maxValue = maxA > maxB ? maxA : maxB;
+
+    // Adjust maxY to the nearest multiple of 5 for better readability
+    return (maxValue % 5 == 0)
+        ? maxValue.toDouble()
+        : (maxValue + (5 - maxValue % 5)).toDouble();
   }
 
   Widget _buildRecentTransactions() {
@@ -890,6 +983,61 @@ class AdminDashboard extends StatelessWidget {
         );
       },
     );
+  }
+
+  Widget _buildLegend() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildLegendItem(Colors.orange, 'Pinjaman'),
+        const SizedBox(width: 16),
+        _buildLegendItem(Colors.blue, 'Simpanan'),
+      ],
+    );
+  }
+
+  Widget _buildLegendItem(Color color, String label) {
+    return Row(
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          label,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        ),
+      ],
+    );
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchPinjamanData() async {
+    final querySnapshot =
+        await FirebaseFirestore.instance.collection('pinjaman').get();
+    return querySnapshot.docs
+        .map((doc) => doc.data() as Map<String, dynamic>)
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchUserData() async {
+    final querySnapshot =
+        await FirebaseFirestore.instance.collection('users').get();
+    return querySnapshot.docs
+        .map((doc) => doc.data() as Map<String, dynamic>)
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _fetchSimpananData() async {
+    final querySnapshot =
+        await FirebaseFirestore.instance.collection('simpanan').get();
+    return querySnapshot.docs
+        .map((doc) => doc.data() as Map<String, dynamic>)
+        .toList();
   }
 }
 

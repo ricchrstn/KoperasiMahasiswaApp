@@ -6,6 +6,9 @@ import 'package:kopma/pages/forgot_password_page.dart';
 import 'package:kopma/pages/dashboard_page.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'registration_page.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:provider/provider.dart';
+import '../theme_provider.dart';
 
 class LoginPage extends StatefulWidget {
   final String? successMessage;
@@ -112,18 +115,23 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.green.shade700,
-              Colors.green.shade500,
-              Colors.green.shade300,
-            ],
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDarkMode = themeProvider.themeMode == ThemeMode.dark;
+
+    return Material(
+      child: CupertinoPageScaffold(
+        navigationBar: CupertinoNavigationBar(
+          automaticallyImplyLeading: false,
+          middle: Align(
+            alignment: Alignment.centerRight,
+            child: CupertinoSwitch(
+              value: isDarkMode,
+              onChanged: (value) {
+                themeProvider.toggleTheme();
+              },
+            ),
           ),
+          backgroundColor: CupertinoColors.systemGrey6,
         ),
         child: SafeArea(
           child: Center(
@@ -302,7 +310,15 @@ class _LoginPageState extends State<LoginPage> {
                                 ),
                                 Text(
                                   'Remember Me',
-                                  style: TextStyle(color: Colors.white),
+                                  style: TextStyle(
+                                    color:
+                                        Colors
+                                            .green
+                                            .shade700, // Mengubah warna teks agar lebih terlihat
+                                    fontWeight:
+                                        FontWeight
+                                            .bold, // Menambahkan ketebalan teks
+                                  ),
                                 ),
                               ],
                             ),
@@ -382,7 +398,10 @@ class _LoginPageState extends State<LoginPage> {
                     children: [
                       Text(
                         "Don't have an account?",
-                        style: TextStyle(color: Colors.white, fontSize: 14),
+                        style: TextStyle(
+                          color: Colors.green, // Changed color to green
+                          fontSize: 14,
+                        ),
                       ),
                       TextButton(
                         onPressed: () {
@@ -396,7 +415,7 @@ class _LoginPageState extends State<LoginPage> {
                         child: Text(
                           'Sign Up',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: Colors.green, // Changed color to green
                             fontWeight: FontWeight.bold,
                             fontSize: 14,
                           ),
@@ -416,7 +435,7 @@ class _LoginPageState extends State<LoginPage> {
                     child: Text(
                       'Forgot Password?',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Colors.green, // Changed color to green
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
