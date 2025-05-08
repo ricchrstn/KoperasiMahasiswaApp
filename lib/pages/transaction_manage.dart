@@ -729,7 +729,6 @@ class PinjamanTab extends StatelessWidget {
             final purpose = data['tujuan'] ?? '-';
             final date = data['tanggal'] ?? '-';
             final userEmail = data['userEmail'] ?? '-';
-            final userId = data['userId'] ?? '-';
 
             return Card(
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -1184,7 +1183,6 @@ class SimpananTab extends StatelessWidget {
             final amount = data['jumlah'] ?? 0;
             final date = data['tanggal'] ?? '-';
             final userEmail = data['userEmail'] ?? '-';
-            final userId = data['userId'] ?? '-';
             final jenis = data['jenis'] ?? 'sukarela';
             final approvedAt = data['approvedAt'] as Timestamp?;
             final rejectedAt = data['rejectedAt'] as Timestamp?;

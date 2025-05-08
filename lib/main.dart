@@ -27,6 +27,7 @@ void main() async {
         providers: [
           Provider(create: (_) => FirestoreService()),
           ChangeNotifierProvider(create: (_) => ThemeProvider()),
+          ChangeNotifierProvider(create: (_) => ChartRangeProvider()),
         ],
         child: const KoperasiApp(),
       ),

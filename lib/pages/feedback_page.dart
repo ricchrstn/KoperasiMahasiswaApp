@@ -15,14 +15,16 @@ class _FeedbackPageState extends State<FeedbackPage> {
   bool _isLoading = false;
 
   Future<String> _analyzeSentiment(String text) async {
-    // TODO: Ganti dengan request ke API sentimen
+    // Simulasi analisis sentimen
     await Future.delayed(Duration(seconds: 1));
     if (text.toLowerCase().contains('bagus') ||
-        text.toLowerCase().contains('baik'))
+        text.toLowerCase().contains('baik')) {
       return 'Positif';
+    }
     if (text.toLowerCase().contains('jelek') ||
-        text.toLowerCase().contains('buruk'))
+        text.toLowerCase().contains('buruk')) {
       return 'Negatif';
+    }
     return 'Netral';
   }
 
@@ -39,90 +41,166 @@ class _FeedbackPageState extends State<FeedbackPage> {
 
   void _submit() async {
     final text = _controller.text.trim();
-    if (text.isEmpty) return;
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Feedback tidak boleh kosong!')));
+      return;
+    }
     setState(() {
       _isLoading = true;
       _sentiment = null;
     });
-    final result = await _analyzeSentiment(text);
-    await _saveFeedback(text, result);
-    setState(() {
-      _sentiment = result;
-      _isLoading = false;
-    });
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('Feedback berhasil dikirim!')));
+    try {
+      final result = await _analyzeSentiment(text);
+      await _saveFeedback(text, result);
+      setState(() {
+        _sentiment = result;
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Feedback berhasil dikirim!')));
+      _controller.clear();
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Gagal mengirim feedback: $e')));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Feedback & Sentimen'),
-        backgroundColor: theme.scaffoldBackgroundColor,
-        elevation: 0,
-        centerTitle: true,
-        iconTheme: IconThemeData(color: theme.colorScheme.primary),
-        titleTextStyle: TextStyle(
-          color: theme.colorScheme.primary,
-          fontWeight: FontWeight.bold,
-          fontSize: 18,
+    return WillPopScope(
+      onWillPop: () async {
+        // Tambahkan logika jika diperlukan, misalnya menampilkan dialog konfirmasi
+        return true; // Mengizinkan navigasi kembali
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('Feedback'),
+          centerTitle: true,
+          backgroundColor: Colors.green.shade800,
         ),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Tulis feedback Anda:',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            TextField(
-              controller: _controller,
-              minLines: 3,
-              maxLines: 5,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(),
-                hintText: 'Masukkan feedback...',
-              ),
-            ),
-            SizedBox(height: 12),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _submit,
-              child: Text('Kirim & Analisis Sentimen'),
-            ),
-            if (_isLoading) ...[
-              SizedBox(height: 16),
-              Center(child: CircularProgressIndicator()),
-            ],
-            if (_sentiment != null) ...[
-              SizedBox(height: 16),
-              Text(
-                'Hasil Analisis Sentimen:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              SizedBox(height: 8),
-              Center(
-                child: Text(
-                  _sentiment!,
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color:
-                        _sentiment == 'Positif'
-                            ? Colors.green
-                            : _sentiment == 'Negatif'
-                            ? Colors.red
-                            : Colors.orange,
+        body: SingleChildScrollView(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Berikan Feedback Anda',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.green.shade800,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Kami menghargai masukan Anda untuk meningkatkan layanan kami.',
+                        style: TextStyle(fontSize: 16, color: Colors.grey[700]),
+                      ),
+                      const SizedBox(height: 20),
+                      TextField(
+                        controller: _controller,
+                        decoration: InputDecoration(
+                          labelText: 'Masukkan Feedback',
+                          hintText: 'Tulis masukan Anda di sini...',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          filled: true,
+                          fillColor: Colors.grey[100],
+                        ),
+                        maxLines: 5,
+                      ),
+                      const SizedBox(height: 20),
+                      _isLoading
+                          ? Center(child: CircularProgressIndicator())
+                          : SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _submit,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green.shade800,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text(
+                                'Kirim Feedback',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                            ),
+                          ),
+                    ],
                   ),
                 ),
               ),
+              if (_sentiment != null) ...[
+                const SizedBox(height: 20),
+                Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _sentiment == 'Positif'
+                              ? Icons.sentiment_satisfied
+                              : _sentiment == 'Negatif'
+                              ? Icons.sentiment_dissatisfied
+                              : Icons.sentiment_neutral,
+                          color:
+                              _sentiment == 'Positif'
+                                  ? Colors.green
+                                  : _sentiment == 'Negatif'
+                                  ? Colors.red
+                                  : Colors.grey,
+                          size: 40,
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Text(
+                            'Sentimen Anda: $_sentiment',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color:
+                                  _sentiment == 'Positif'
+                                      ? Colors.green
+                                      : _sentiment == 'Negatif'
+                                      ? Colors.red
+                                      : Colors.grey,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
