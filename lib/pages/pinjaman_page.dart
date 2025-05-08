@@ -683,3 +683,73 @@ class _PinjamanPageState extends State<PinjamanPage> {
     );
   }
 }
+
+void _showPinjamanDialog(BuildContext context, String userId) {
+  showDialog(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        title: Text('Daftar Pinjaman'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: StreamBuilder<QuerySnapshot>(
+            stream:
+                FirebaseFirestore.instance
+                    .collection('pinjaman')
+                    .where('userId', isEqualTo: userId)
+                    .orderBy('createdAt', descending: true)
+                    .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Text('Terjadi kesalahan');
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              }
+              final data = snapshot.data?.docs ?? [];
+              if (data.isEmpty) {
+                return Text('Belum ada data pinjaman');
+              }
+
+              return ListView.builder(
+                shrinkWrap: true,
+                itemCount: data.length,
+                itemBuilder: (context, index) {
+                  final pinjaman = data[index];
+                  final jumlah = pinjaman['jumlah'] ?? 0;
+                  final tanggal = pinjaman['tanggal'] ?? '-';
+                  final keterangan = pinjaman['keterangan'] ?? '';
+                  final status = pinjaman['status'] ?? 'Menunggu';
+
+                  return Card(
+                    margin: EdgeInsets.symmetric(vertical: 6),
+                    child: ListTile(
+                      title: Text(
+                        'Rp ${NumberFormat("#,###", "id_ID").format(jumlah)}',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Tanggal: $tanggal'),
+                          if (keterangan.isNotEmpty) Text('Ket: $keterangan'),
+                          Text('Status: $status'),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Tutup'),
+          ),
+        ],
+      );
+    },
+  );
+}
